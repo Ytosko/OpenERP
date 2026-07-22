@@ -1,0 +1,193 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/useAuthStore';
+import { Terminal, Sparkles, Store, Printer, ArrowRight, Check } from 'lucide-react';
+
+export const GuidedSetupPage: React.FC = () => {
+  const [step, setStep] = useState(1);
+  const [storeName, setStoreName] = useState('');
+  const [businessType, setBusinessType] = useState('retail');
+  const [currency, setCurrency] = useState('USD');
+  const [prompt, setPrompt] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
+  const { setActiveProject } = useAuthStore();
+
+  const handleCompleteSetup = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setActiveProject({
+        id: `proj-${Date.now()}`,
+        name: storeName || 'Hacker Mart General Store',
+        slug: 'hacker-mart',
+        currency_code: currency,
+        role: 'owner',
+      });
+      setLoading(false);
+      navigate('/pos');
+    }, 800);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl font-mono text-xs">
+        {/* Progress Bar */}
+        <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-brand-500 text-white rounded-lg flex items-center justify-center font-bold">
+              {step}
+            </div>
+            <div>
+              <div className="text-white font-bold uppercase">STORE ONBOARDING</div>
+              <div className="text-[10px] text-slate-400">Step {step} of 3</div>
+            </div>
+          </div>
+
+          <div className="flex gap-1.5">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`w-8 h-1.5 rounded-full ${
+                  i <= step ? 'bg-brand-500' : 'bg-slate-800'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Step 1: Business Details */}
+        {step === 1 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+              <Store className="w-4 h-4 text-brand-500" /> WHAT DO YOU SELL?
+            </h3>
+
+            <div>
+              <label className="text-slate-400 block mb-1">STORE / BUSINESS NAME</label>
+              <input
+                type="text"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="e.g. Apex Health Pharmacy or Artisanal Roasters"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:border-brand-500 outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-slate-400 block mb-1">BUSINESS TYPE</label>
+                <select
+                  value={businessType}
+                  onChange={(e) => setBusinessType(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:border-brand-500 outline-none"
+                >
+                  <option value="retail">General Retail</option>
+                  <option value="coffee_shop">Coffee & Bakery</option>
+                  <option value="pharmacy">Pharmacy & Health</option>
+                  <option value="restaurant">Restaurant & Food</option>
+                  <option value="electronics">Electronics</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-400 block mb-1">CURRENCY</label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:border-brand-500 outline-none"
+                >
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="CAD">CAD ($)</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setStep(2)}
+              className="w-full mt-4 bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-lg shadow-hacker-orange flex items-center justify-center gap-2 cursor-pointer"
+            >
+              NEXT STEP <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Step 2: Receipt Preset */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+              <Printer className="w-4 h-4 text-brand-500" /> CHOOSE A RECEIPT SIZE
+            </h3>
+
+            <div className="space-y-2">
+              {[
+                { name: '80mm Thermal Roll (3")', desc: 'Standard POS receipt printer' },
+                { name: '58mm Compact Roll (2")', desc: 'Mobile or small thermal receipt' },
+                { name: '4 × 6 Shipping Label', desc: 'Logistics and package labels' },
+              ].map((rec, idx) => (
+                <div
+                  key={rec.name}
+                  className="p-3 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-white"
+                >
+                  <div>
+                    <div className="font-bold">{rec.name}</div>
+                    <div className="text-[10px] text-slate-400">{rec.desc}</div>
+                  </div>
+                  <Check className="w-4 h-4 text-brand-500" />
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setStep(1)}
+                className="flex-1 py-3 border border-slate-800 text-slate-300 rounded-lg cursor-pointer"
+              >
+                BACK
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="flex-1 py-3 bg-brand-500 text-white font-bold rounded-lg shadow-hacker-orange cursor-pointer"
+              >
+                NEXT STEP <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: AI Catalog Generation Prompt */}
+        {step === 3 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-brand-500" /> AI CATALOG GENERATOR
+            </h3>
+
+            <div>
+              <label className="text-slate-400 block mb-1">PROMPT AI TO CREATE INITIAL PRODUCTS</label>
+              <textarea
+                rows={3}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="e.g. Create a specialty coffee shop with 20 items, low stock warnings, and oat milk options"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
+              />
+            </div>
+
+            <button
+              onClick={handleCompleteSetup}
+              disabled={loading}
+              className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-lg shadow-hacker-orange flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {loading ? 'BUILDING YOUR STORE...' : 'LAUNCH STORE & POS'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: modular-ai-pos-app:latest
+    container_name: pos-app
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_APP_URL=${VITE_APP_URL:-http://localhost:3000}
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-http://localhost:8000}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
+    networks:
+      - erp-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: erp-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secure_redis_password_2026}
+    volumes:
+      - redis_data:/data
+    networks:
+      - erp-network
+
+volumes:
+  redis_data:
+
+networks:
+  erp-network:
+    driver: bridge
