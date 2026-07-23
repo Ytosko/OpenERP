@@ -10,13 +10,40 @@ export const EasyModeEditor: React.FC = () => {
     usePrintDesignerStore();
 
   const presets = [
-    { label: 'Rongta RP400 (104mm)', width: 104, height: 160, unit: 'mm' as PageUnit, mode: 'continuous' as PageMode },
-    { label: 'Rongta RP500 (80mm)', width: 80, height: 150, unit: 'mm' as PageUnit, mode: 'continuous' as PageMode },
+    { label: '104mm Industrial Roll', width: 104, height: 160, unit: 'mm' as PageUnit, mode: 'continuous' as PageMode },
+    { label: '80mm Thermal Receipt', width: 80, height: 150, unit: 'mm' as PageUnit, mode: 'continuous' as PageMode },
+    { label: '58mm Mini Receipt Roll', width: 58, height: 120, unit: 'mm' as PageUnit, mode: 'continuous' as PageMode },
     { label: '4 × 6 Shipping Label', width: 102, height: 152, unit: 'mm' as PageUnit, mode: 'fixed' as PageMode },
     { label: '60 × 40 Barcode Tag', width: 60, height: 40, unit: 'mm' as PageUnit, mode: 'fixed' as PageMode },
     { label: '50 × 30 Price Tag', width: 50, height: 30, unit: 'mm' as PageUnit, mode: 'fixed' as PageMode },
-    { label: '38 × 25 Small Item', width: 38, height: 25, unit: 'mm' as PageUnit, mode: 'fixed' as PageMode },
   ];
+
+  // Dynamic sorting by Y coordinate so sidebar matches canvas order 1:1!
+  const sortedElements = [...schema.elements].sort((a, b) => a.y - b.y);
+
+  const handleMoveUp = (elId: string) => {
+    const idx = sortedElements.findIndex((el) => el.id === elId);
+    if (idx <= 0) return;
+    const current = sortedElements[idx];
+    const prev = sortedElements[idx - 1];
+
+    // Swap Y positions
+    const tempY = current.y;
+    updateElement(current.id, { y: prev.y });
+    updateElement(prev.id, { y: tempY });
+  };
+
+  const handleMoveDown = (elId: string) => {
+    const idx = sortedElements.findIndex((el) => el.id === elId);
+    if (idx === -1 || idx >= sortedElements.length - 1) return;
+    const current = sortedElements[idx];
+    const next = sortedElements[idx + 1];
+
+    // Swap Y positions
+    const tempY = current.y;
+    updateElement(current.id, { y: next.y });
+    updateElement(next.id, { y: tempY });
+  };
 
   const footerEl = schema.elements.find((el) => el.type === 'footer_text');
 
@@ -30,7 +57,7 @@ export const EasyModeEditor: React.FC = () => {
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[10px] text-slate-500 block">WIDTH ({schema.page.unit})</label>
+            <label className="text-[10px] text-slate-500 block font-bold">WIDTH ({schema.page.unit})</label>
             <input
               type="number"
               value={schema.page.width}
@@ -47,7 +74,7 @@ export const EasyModeEditor: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-[10px] text-slate-500 block">HEIGHT ({schema.page.unit})</label>
+            <label className="text-[10px] text-slate-500 block font-bold">HEIGHT ({schema.page.unit})</label>
             <input
               type="number"
               value={schema.page.height}
@@ -66,7 +93,7 @@ export const EasyModeEditor: React.FC = () => {
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[10px] text-slate-500 block">UNIT</label>
+            <label className="text-[10px] text-slate-500 block font-bold">UNIT</label>
             <select
               value={schema.page.unit}
               onChange={(e) =>
@@ -87,7 +114,7 @@ export const EasyModeEditor: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-[10px] text-slate-500 block">MODE</label>
+            <label className="text-[10px] text-slate-500 block font-bold">MODE</label>
             <select
               value={schema.page.mode}
               onChange={(e) =>
@@ -140,16 +167,16 @@ export const EasyModeEditor: React.FC = () => {
         </div>
       </div>
 
-      {/* Step 2: Toggleable Receipt Blocks */}
+      {/* Step 2: Toggleable & Reorderable Receipt Blocks */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="font-bold text-slate-700 tracking-wide uppercase">
-            CHOOSE BLOCKS TO INCLUDE
+            CHOOSE BLOCKS & TOP-TO-BOTTOM ORDER
           </label>
         </div>
 
-        <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
-          {schema.elements.map((el, idx) => (
+        <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
+          {sortedElements.map((el, idx) => (
             <div
               key={el.id}
               className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
@@ -169,21 +196,26 @@ export const EasyModeEditor: React.FC = () => {
                     <EyeOff className="w-3.5 h-3.5 text-slate-400" />
                   )}
                 </button>
-                <span className="font-semibold">{el.label}</span>
+                <div className="flex flex-col">
+                  <span className="font-bold">{el.label}</span>
+                  <span className="text-[9px] text-slate-400">Y: {el.y}{schema.page.unit}</span>
+                </div>
               </div>
 
               <div className="flex items-center gap-1">
                 <button
                   disabled={idx === 0}
-                  onClick={() => moveElementOrder(el.id, 'up')}
+                  onClick={() => handleMoveUp(el.id)}
                   className="p-1 hover:bg-slate-100 rounded text-slate-600 disabled:opacity-20 cursor-pointer"
+                  title="Move element up"
                 >
                   <MoveUp className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  disabled={idx === schema.elements.length - 1}
-                  onClick={() => moveElementOrder(el.id, 'down')}
+                  disabled={idx === sortedElements.length - 1}
+                  onClick={() => handleMoveDown(el.id)}
                   className="p-1 hover:bg-slate-100 rounded text-slate-600 disabled:opacity-20 cursor-pointer"
+                  title="Move element down"
                 >
                   <MoveDown className="w-3.5 h-3.5" />
                 </button>
