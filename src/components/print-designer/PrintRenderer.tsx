@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TemplateSchema, PrintElement } from '@/types/print-designer';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
+import { generateRealBarcodeSvg, generateRealQrCodeSvg } from '@/lib/barcode-qr';
 import { Move, Trash2 } from 'lucide-react';
 
 export interface PrintRendererProps {
@@ -211,21 +212,25 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
                 );
 
               case 'barcode':
+                const barcodeValue = (el.content && el.content.trim() !== '') ? el.content : (sampleData.invoiceNumber || 'INV-100001');
+                const barcodeSvgHtml = generateRealBarcodeSvg(barcodeValue, 32);
+
                 return (
-                  <div className="text-center w-full">
-                    <div className="bg-black text-white text-[8px] tracking-[0.3em] font-bold py-1 px-3 inline-block">
-                      ||| | |||| | |||||| ||
-                    </div>
-                    <div className="text-[9px]">{sampleData.invoiceNumber}</div>
+                  <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden">
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      dangerouslySetInnerHTML={{ __html: barcodeSvgHtml }}
+                    />
                   </div>
                 );
 
               case 'qr_code':
+                const qrValue = (el.content && el.content.trim() !== '') ? el.content : (sampleData.invoiceNumber || 'INV-100001');
+                const qrUrl = generateRealQrCodeSvg(qrValue);
+
                 return (
-                  <div className="text-center w-full flex items-center justify-center">
-                    <div className="w-14 h-14 bg-black text-white text-[8px] flex items-center justify-center border border-slate-300">
-                      [QR-CODE]
-                    </div>
+                  <div className="w-full h-full flex items-center justify-center">
+                    <img src={qrUrl} alt="Scannable QR Code" className="max-w-full max-h-full object-contain" />
                   </div>
                 );
 
