@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TemplateSchema, PrintElement } from '@/types/print-designer';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { Move, Trash2 } from 'lucide-react';
@@ -53,34 +53,10 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState<{ startX: number; startY: number; initialElX: number; initialElY: number } | null>(null);
 
-  const getWidthCss = () => {
-    switch (page.unit) {
-      case 'mm':
-        return `${page.width}mm`;
-      case 'cm':
-        return `${page.width}cm`;
-      case 'inch':
-        return `${page.width}in`;
-      case 'px':
-      default:
-        return `${page.width}px`;
-    }
-  };
+  const pxPerUnit = page.unit === 'mm' ? 3.78 : page.unit === 'cm' ? 37.8 : page.unit === 'inch' ? 96 : 1;
 
-  const getHeightCss = () => {
-    if (page.mode === 'continuous') return 'auto';
-    switch (page.unit) {
-      case 'mm':
-        return `${page.height}mm`;
-      case 'cm':
-        return `${page.height}cm`;
-      case 'inch':
-        return `${page.height}in`;
-      case 'px':
-      default:
-        return `${page.height}px`;
-    }
-  };
+  const getWidthCss = () => `${page.width}${page.unit}`;
+  const getHeightCss = () => (page.mode === 'continuous' && isPrintOnly ? 'auto' : `${page.height || 150}${page.unit}`);
 
   const handleMouseDown = (e: React.MouseEvent, el: PrintElement) => {
     if (isPrintOnly) return;
@@ -96,35 +72,46 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
     });
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  useEffect(() => {
     if (!draggingId || !dragStart || isPrintOnly) return;
-    const dx = Math.round((e.clientX - dragStart.startX) / 3);
-    const dy = Math.round((e.clientY - dragStart.startY) / 3);
 
-    const newX = Math.max(0, dragStart.initialElX + dx);
-    const newY = Math.max(0, dragStart.initialElY + dy);
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const dxPx = e.clientX - dragStart.startX;
+      const dyPx = e.clientY - dragStart.startY;
 
-    updateElement(draggingId, { x: newX, y: newY });
-  };
+      const dxUnits = Math.round(dxPx / pxPerUnit);
+      const dyUnits = Math.round(dyPx / pxPerUnit);
 
-  const handleMouseUp = () => {
-    setDraggingId(null);
-    setDragStart(null);
-  };
+      const newX = Math.max(0, dragStart.initialElX + dxUnits);
+      const newY = Math.max(0, dragStart.initialElY + dyUnits);
+
+      updateElement(draggingId, { x: newX, y: newY });
+    };
+
+    const handleWindowMouseUp = () => {
+      setDraggingId(null);
+      setDragStart(null);
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [draggingId, dragStart, isPrintOnly, pxPerUnit, updateElement]);
 
   return (
     <div
       id="printable-thermal-canvas"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
       onClick={() => !isPrintOnly && setSelectedElementId(null)}
-      className={`bg-white text-slate-950 font-mono relative shadow-md overflow-hidden select-none border border-slate-200 ${className}`}
+      className={`bg-white text-slate-950 font-mono relative shadow-xl overflow-visible select-none border border-slate-300 ${className}`}
       style={{
         width: getWidthCss(),
         minWidth: getWidthCss(),
         height: getHeightCss(),
-        minHeight: page.mode === 'fixed' ? getHeightCss() : '130mm',
+        minHeight: page.mode === 'fixed' ? getHeightCss() : '140mm',
         padding: `${page.margins.top}${page.unit} ${page.margins.right}${page.unit} ${page.margins.bottom}${page.unit} ${page.margins.left}${page.unit}`,
         boxSizing: 'border-box',
       }}
@@ -133,21 +120,20 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
         .filter((el) => el.enabled)
         .map((el) => {
           const isSelected = !isPrintOnly && selectedElementId === el.id;
-          const isAbsolute = page.mode === 'fixed' || (el.x >= 0 && el.y >= 0);
 
           const style: React.CSSProperties = {
-            position: isAbsolute ? 'absolute' : 'relative',
-            left: isAbsolute ? `${el.x}${page.unit}` : undefined,
-            top: isAbsolute ? `${el.y}${page.unit}` : undefined,
+            position: 'absolute',
+            left: `${el.x}${page.unit}`,
+            top: `${el.y}${page.unit}`,
             width: `${el.width}${page.unit}`,
             height: `${el.height}${page.unit}`,
             fontSize: el.style.fontSize ? `${el.style.fontSize}px` : undefined,
             fontWeight: el.style.fontWeight,
             textAlign: el.style.textAlign,
             color: el.style.color ?? '#000000',
-            zIndex: el.zIndex,
+            zIndex: isSelected ? 999 : el.zIndex,
             boxSizing: 'border-box',
-            cursor: !isPrintOnly ? 'move' : 'default',
+            cursor: !isPrintOnly ? 'grab' : 'default',
           };
 
           const renderContent = () => {
@@ -156,9 +142,9 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
                 return (
                   <div className="w-full h-full flex items-center justify-center">
                     {el.content ? (
-                      <img src={el.content} alt="Store Logo" className="max-w-full max-h-full object-contain" />
+                      <img src={el.content} alt="Store Logo" className="max-w-full max-h-full object-contain pointer-events-none" />
                     ) : (
-                      <div className="w-12 h-12 bg-slate-900 text-white rounded flex items-center justify-center text-[10px] font-bold">
+                      <div className="w-full h-full bg-slate-900 text-white rounded flex items-center justify-center text-[10px] font-bold">
                         [LOGO]
                       </div>
                     )}
@@ -166,10 +152,10 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
                 );
 
               case 'store_name':
-                return <div className="truncate font-bold">{el.content || sampleData.storeName}</div>;
+                return <div className="w-full truncate font-bold">{el.content || sampleData.storeName}</div>;
 
               case 'store_address':
-                return <div className="text-[10px] leading-tight text-slate-700">{el.content || sampleData.storeAddress}</div>;
+                return <div className="w-full text-[10px] leading-tight text-slate-700">{el.content || sampleData.storeAddress}</div>;
 
               case 'line':
                 return (
@@ -186,7 +172,7 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
 
               case 'invoice_number':
                 return (
-                  <div className="text-[11px] leading-snug">
+                  <div className="w-full text-[11px] leading-snug">
                     <div><span className="font-bold">INVOICE:</span> {sampleData.invoiceNumber}</div>
                     <div className="text-[9px] text-slate-600">DATE: {sampleData.dateTime}</div>
                   </div>
@@ -239,13 +225,13 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
 
               case 'footer_text':
                 return (
-                  <div className="text-[9px] text-slate-700 text-center leading-tight">
+                  <div className="w-full text-[9px] text-slate-700 text-center leading-tight">
                     {el.content || 'Thank you for your business!'}
                   </div>
                 );
 
               default:
-                return <div className="text-[10px]">{el.content || el.label}</div>;
+                return <div className="w-full text-[10px]">{el.content || el.label}</div>;
             }
           };
 
@@ -256,23 +242,23 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
               onMouseDown={(e) => handleMouseDown(e, el)}
               className={`transition-shadow ${
                 isSelected
-                  ? 'outline outline-2 outline-brand-500 ring-4 ring-brand-500/20 bg-brand-50/10 z-50'
+                  ? 'outline outline-2 outline-brand-500 ring-4 ring-brand-500/30 bg-brand-50/20'
                   : 'hover:outline hover:outline-1 hover:outline-slate-400'
               }`}
             >
               {renderContent()}
 
-              {/* Selection overlay handles */}
+              {/* Active Selection Handle Bar */}
               {isSelected && (
-                <div className="absolute -top-6 left-0 bg-brand-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold flex items-center gap-1 shadow pointer-events-auto">
+                <div className="absolute -top-7 left-0 bg-brand-500 text-white text-[9px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1.5 shadow-lg pointer-events-auto z-50">
                   <Move className="w-3 h-3" />
-                  <span>X:{el.x} Y:{el.y}</span>
+                  <span>X:{el.x} Y:{el.y} W:{el.width} H:{el.height}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteElement(el.id);
                     }}
-                    className="ml-1 text-white hover:text-red-200"
+                    className="ml-1.5 text-white hover:text-red-200 cursor-pointer"
                     title="Delete element"
                   >
                     <Trash2 className="w-3 h-3" />
