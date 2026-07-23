@@ -15,8 +15,8 @@ export async function runAIForecasting(products: any[]): Promise<ForecastResult[
   if (apiKey && apiKey.trim() !== '') {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      // Using Gemini Flash Lite model for ultra-fast response
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-lite' });
+      // Gemini 3.1 Flash Lite model
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
       const prompt = `Analyze these inventory products and predict which items need reordering:\n${JSON.stringify(
         products
       )}\nReturn ONLY a raw JSON array of forecast alerts with fields: productName, daysRemaining, recommendedOrderQty, urgency ('high'|'medium'|'low'), summary. Do not include markdown codeblocks.`;
@@ -34,12 +34,12 @@ export async function runAIForecasting(products: any[]): Promise<ForecastResult[
 
   // Smart Fallback AI Forecast calculations based on stock levels & thresholds
   return products.map((p) => {
-    const daysLeft = Math.max(1, Math.floor(p.stock_quantity / 1.5));
-    const urgency = p.stock_quantity <= 5 ? 'high' : daysLeft <= 7 ? 'medium' : 'low';
+    const daysLeft = Math.max(1, Math.floor((p.stock_quantity || 10) / 1.5));
+    const urgency = (p.stock_quantity || 10) <= 5 ? 'high' : daysLeft <= 7 ? 'medium' : 'low';
     return {
       productName: p.name,
       daysRemaining: daysLeft,
-      recommendedOrderQty: Math.max(20, p.low_stock_threshold * 4),
+      recommendedOrderQty: Math.max(20, (p.low_stock_threshold || 5) * 4),
       urgency,
       summary: `Estimated stock exhaustion in ${daysLeft} days based on sales velocity.`,
     };
@@ -52,7 +52,8 @@ export async function runAILayoutOptimizer(schema: TemplateSchema): Promise<Temp
   if (apiKey && apiKey.trim() !== '') {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-lite' });
+      // Gemini 3.1 Flash Lite model
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
       const prompt = `You are a world-class graphic designer specializing in thermal receipts and industrial barcode labels.
 
 Take this current print template schema JSON for a ${schema.page.width}${schema.page.unit} (${schema.page.mode}) layout:

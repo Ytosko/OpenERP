@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useLoyaltyStore } from '@/store/useLoyaltyStore';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { executeSaleRPC } from '@/lib/db-client';
-import { openCashDrawer, printDirectESC_POS } from '@/lib/hardware-printer';
+import { openCashDrawer } from '@/lib/hardware-printer';
 import { DigitalReceiptModal } from '@/components/receipt/DigitalReceiptModal';
 import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
 import {
@@ -33,6 +33,12 @@ const MOCK_PRODUCTS: PosProduct[] = [
   { id: 'p4', sku: 'BAK-202', barcode: '8902002', name: 'Chocolate Almond Muffin', sales_price: 4.50, cost_price: 1.25, unit: 'item', track_stock: true, stock_quantity: 3 },
   { id: 'p5', sku: 'BEV-301', barcode: '8903001', name: 'Cold Brew Coffee 16oz', sales_price: 4.95, cost_price: 0.90, unit: 'cup', track_stock: false, stock_quantity: 999 },
   { id: 'p6', sku: 'MER-401', barcode: '8904001', name: 'Ethiopia Whole Bean 250g', sales_price: 18.50, cost_price: 8.00, unit: 'bag', track_stock: true, stock_quantity: 8 },
+  { id: 'p7', sku: 'ELE-501', barcode: '8905001', name: 'Wireless Thermal Label Printer', sales_price: 149.99, cost_price: 85.00, unit: 'unit', track_stock: true, stock_quantity: 12 },
+  { id: 'p8', sku: 'ELE-502', barcode: '8905002', name: 'Handheld 2D Laser Barcode Scanner', sales_price: 69.50, cost_price: 32.00, unit: 'unit', track_stock: true, stock_quantity: 18 },
+  { id: 'p9', sku: 'SUP-601', barcode: '8906001', name: '80mm Thermal Receipt Paper (Box of 50)', sales_price: 45.00, cost_price: 22.00, unit: 'box', track_stock: true, stock_quantity: 40 },
+  { id: 'p10', sku: 'SUP-602', barcode: '8906002', name: '4x6 Shipping Label Rolls (Roll of 500)', sales_price: 28.75, cost_price: 12.50, unit: 'roll', track_stock: true, stock_quantity: 65 },
+  { id: 'p11', sku: 'BEV-302', barcode: '8903002', name: 'Organic Matcha Green Tea Latte', sales_price: 5.75, cost_price: 1.40, unit: 'cup', track_stock: false, stock_quantity: 999 },
+  { id: 'p12', sku: 'BAK-203', barcode: '8902003', name: 'Artisan Blueberry Scone', sales_price: 3.95, cost_price: 0.95, unit: 'item', track_stock: true, stock_quantity: 15 },
 ];
 
 export const PosTerminalPage: React.FC = () => {
@@ -159,7 +165,7 @@ export const PosTerminalPage: React.FC = () => {
 
           <button
             onClick={() => openCashDrawer()}
-            className="px-3 py-1.5 border border-slate-300 hover:border-slate-400 rounded-lg font-bold flex items-center gap-1 cursor-pointer shrink-0"
+            className="px-3 py-1.5 border border-slate-300 hover:border-slate-400 rounded-lg font-bold flex items-center gap-1 cursor-pointer shrink-0 text-slate-800"
             title="Trigger cash drawer signal"
           >
             <Zap className="w-3.5 h-3.5 text-amber-500" /> DRAWER
@@ -219,7 +225,7 @@ export const PosTerminalPage: React.FC = () => {
             {cart.length > 0 && (
               <button
                 onClick={clearCart}
-                className="text-[10px] font-mono text-red-500 hover:underline cursor-pointer"
+                className="text-[10px] font-mono text-red-500 hover:underline cursor-pointer font-bold"
               >
                 Clear Cart
               </button>
@@ -383,7 +389,7 @@ export const PosTerminalPage: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setCheckoutOpen(false)}
-                className="flex-1 py-2.5 border border-slate-300 rounded-lg text-slate-700 cursor-pointer"
+                className="flex-1 py-2.5 border border-slate-300 rounded-lg text-slate-700 cursor-pointer font-bold"
               >
                 CANCEL
               </button>
