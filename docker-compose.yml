@@ -17,12 +17,14 @@ services:
       - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvcy1lcnAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY3MjUxMjAwMCwiZXhwIjoyMDE4MDg4MDAwfQ.placeholder
       - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - pos-network
 
-  # 2. PostgreSQL Database
+  # 2. PostgreSQL Database with AUTO MIGRATION RUNNER
   db:
     image: postgres:15-alpine
     container_name: pos-postgres
@@ -35,6 +37,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d # AUTOMATICALLY EXECUTES ALL MIGRATIONS ON STARTUP
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
