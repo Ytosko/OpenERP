@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # 1. POS Web Application
   app:
     build:
       context: .
@@ -12,25 +13,51 @@ services:
       - "3000:80"
     environment:
       - VITE_APP_URL=${SERVICE_URL_APP:-https://pos.ytosko.dev}
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-https://pos.ytosko.dev}
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-placeholder-anon-key}
+      - VITE_SUPABASE_URL=${SERVICE_URL_APP:-https://pos.ytosko.dev}
+      - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvcy1lcnAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY3MjUxMjAwMCwiZXhwIjoyMDE4MDg4MDAwfQ.placeholder
       - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
+    depends_on:
+      - db
+      - redis
     networks:
-      - erp-network
+      - pos-network
 
+  # 2. PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: pos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_postgres_password_2026}
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pos-network
+
+  # 3. Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: erp-redis
+    container_name: pos-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secure_redis_password_2026}
     volumes:
       - redis_data:/data
     networks:
-      - erp-network
+      - pos-network
 
 volumes:
+  postgres_data:
   redis_data:
 
 networks:
-  erp-network:
+  pos-network:
     driver: bridge
