@@ -6,8 +6,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: modular-ai-pos-app:latest
-    container_name: pos-app
     restart: unless-stopped
     ports:
       - "3000:80"
@@ -27,14 +25,13 @@ services:
   # 2. PostgreSQL Database with AUTO MIGRATION RUNNER
   db:
     image: postgres:15-alpine
-    container_name: pos-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_postgres_password_2026}
       POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d # AUTOMATICALLY EXECUTES ALL MIGRATIONS ON STARTUP
@@ -49,7 +46,6 @@ services:
   # 3. Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: pos-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secure_redis_password_2026}
     volumes:
