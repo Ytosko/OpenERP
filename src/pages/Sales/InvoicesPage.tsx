@@ -1,34 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FileText, Printer, Eye, Download, Search, CheckCircle } from 'lucide-react';
+import { FileText, Printer, Eye, Search } from 'lucide-react';
 import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
 import { STARTER_80MM_RECEIPT } from '@/types/print-designer';
-
-interface InvoiceRecord {
-  id: string;
-  invoice_number: string;
-  customer_name: string;
-  date: string;
-  items_count: number;
-  total_amount: number;
-  payment_method: string;
-  status: string;
-}
-
-const MOCK_INVOICES: InvoiceRecord[] = [
-  { id: 'inv-101', invoice_number: 'INV-20260723-00042', customer_name: 'Walk-in Customer', date: '2026-07-23 05:30', items_count: 4, total_amount: 17.63, payment_method: 'CASH', status: 'completed' },
-  { id: 'inv-102', invoice_number: 'INV-20260723-00041', customer_name: 'Sarah Connor', date: '2026-07-23 04:15', items_count: 2, total_amount: 9.25, payment_method: 'CARD', status: 'completed' },
-  { id: 'inv-103', invoice_number: 'INV-20260723-00040', customer_name: 'John Doe', date: '2026-07-23 03:40', items_count: 1, total_amount: 18.50, payment_method: 'QR_PAY', status: 'completed' },
-  { id: 'inv-104', invoice_number: 'INV-20260723-00039', customer_name: 'Walk-in Customer', date: '2026-07-23 02:10', items_count: 3, total_amount: 12.99, payment_method: 'CASH', status: 'completed' },
-];
+import { usePosStore, CompletedSaleRecord } from '@/store/usePosStore';
 
 export const InvoicesPage: React.FC = () => {
-  const [invoices] = useState<InvoiceRecord[]>(MOCK_INVOICES);
-  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRecord | null>(null);
+  const { completedSales } = usePosStore();
+  const [selectedInvoice, setSelectedInvoice] = useState<CompletedSaleRecord | null>(null);
   const [search, setSearch] = useState('');
 
-  const filtered = invoices.filter(
+  const filtered = completedSales.filter(
     (inv) =>
       inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
       inv.customer_name.toLowerCase().includes(search.toLowerCase())
@@ -40,7 +23,7 @@ export const InvoicesPage: React.FC = () => {
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-slate-900 uppercase flex items-center gap-2">
-            <FileText className="w-4 h-4 text-brand-500" /> SALES & COMPLETED INVOICES
+            <FileText className="w-4 h-4 text-brand-500" /> SALES & COMPLETED INVOICES ({completedSales.length})
           </h2>
           <p className="text-slate-500 text-[11px] mt-0.5">Immutable audit ledger of all POS transactions and receipts</p>
         </div>

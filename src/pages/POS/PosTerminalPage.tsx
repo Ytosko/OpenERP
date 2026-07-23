@@ -55,6 +55,7 @@ export const PosTerminalPage: React.FC = () => {
     holdSale,
     resumeSale,
     heldSales,
+    recordCompletedSale,
   } = usePosStore();
 
   const { redeemPoints, earnPoints } = useLoyaltyStore();
@@ -105,8 +106,22 @@ export const PosTerminalPage: React.FC = () => {
         openCashDrawer();
       }
 
+      const invoiceNum = result?.invoice_number || `INV-${Date.now().toString().slice(-6)}`;
+
+      // Push into real-time global completed sales store!
+      recordCompletedSale({
+        id: `inv-${Date.now()}`,
+        invoice_number: invoiceNum,
+        customer_name: 'Walk-in Customer',
+        date: new Date().toLocaleString(),
+        items_count: cart.reduce((sum, item) => sum + item.quantity, 0),
+        total_amount: grandTotal,
+        payment_method: paymentMethod,
+        status: 'completed',
+      });
+
       setCompletedSale({
-        invoice_number: result?.invoice_number || `INV-${Date.now().toString().slice(-6)}`,
+        invoice_number: invoiceNum,
         items: [...cart],
         subtotal,
         discountTotal,
@@ -125,9 +140,9 @@ export const PosTerminalPage: React.FC = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-12 gap-4">
+    <div className="h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-12 gap-4 font-mono text-xs">
       {/* Products & Quick Search Area (7 cols) */}
-      <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden font-mono text-xs">
+      <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
         {/* Search Bar */}
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
           <div className="relative flex-1">
@@ -192,7 +207,7 @@ export const PosTerminalPage: React.FC = () => {
       </div>
 
       {/* Cart Drawer & Checkout (5 cols) */}
-      <div className="lg:col-span-5 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between font-mono text-xs">
+      <div className="lg:col-span-5 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
         <div>
           {/* Cart Header */}
           <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-3">

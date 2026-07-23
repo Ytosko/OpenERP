@@ -27,6 +27,24 @@ export interface Customer {
   email?: string;
 }
 
+export interface CompletedSaleRecord {
+  id: string;
+  invoice_number: string;
+  customer_name: string;
+  date: string;
+  items_count: number;
+  total_amount: number;
+  payment_method: string;
+  status: string;
+}
+
+const INITIAL_SALES: CompletedSaleRecord[] = [
+  { id: 'inv-101', invoice_number: 'INV-20260723-00042', customer_name: 'Walk-in Customer', date: '2026-07-23 05:30', items_count: 4, total_amount: 17.63, payment_method: 'CASH', status: 'completed' },
+  { id: 'inv-102', invoice_number: 'INV-20260723-00041', customer_name: 'Sarah Connor', date: '2026-07-23 04:15', items_count: 2, total_amount: 9.25, payment_method: 'CARD', status: 'completed' },
+  { id: 'inv-103', invoice_number: 'INV-20260723-00040', customer_name: 'John Doe', date: '2026-07-23 03:40', items_count: 1, total_amount: 18.50, payment_method: 'QR_PAY', status: 'completed' },
+  { id: 'inv-104', invoice_number: 'INV-20260723-00039', customer_name: 'Walk-in Customer', date: '2026-07-23 02:10', items_count: 3, total_amount: 12.99, payment_method: 'CASH', status: 'completed' },
+];
+
 interface PosState {
   cart: CartItem[];
   selectedCategory: string | null;
@@ -37,6 +55,7 @@ interface PosState {
   cashPaid: number;
   checkoutOpen: boolean;
   heldSales: Array<{ id: string; cart: CartItem[]; customer: Customer | null; date: string }>;
+  completedSales: CompletedSaleRecord[];
   
   addToCart: (product: PosProduct) => void;
   removeFromCart: (productId: string) => void;
@@ -51,6 +70,7 @@ interface PosState {
   setCheckoutOpen: (open: boolean) => void;
   holdSale: () => void;
   resumeSale: (heldSaleId: string) => void;
+  recordCompletedSale: (sale: CompletedSaleRecord) => void;
 }
 
 export const usePosStore = create<PosState>((set, get) => ({
@@ -63,6 +83,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   cashPaid: 0,
   checkoutOpen: false,
   heldSales: [],
+  completedSales: INITIAL_SALES,
 
   addToCart: (product) => {
     const { cart } = get();
@@ -135,4 +156,9 @@ export const usePosStore = create<PosState>((set, get) => ({
       heldSales: heldSales.filter((s) => s.id !== heldSaleId),
     });
   },
+
+  recordCompletedSale: (sale) =>
+    set((state) => ({
+      completedSales: [sale, ...state.completedSales],
+    })),
 }));
