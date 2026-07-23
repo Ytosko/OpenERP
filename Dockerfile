@@ -11,9 +11,10 @@ RUN npm run build
 # Apache HTTPD Server Stage
 FROM httpd:2.4-alpine AS runner
 
-# Enable mod_rewrite in Apache httpd.conf for SPA client routing
+# Enable mod_rewrite in Apache httpd.conf for SPA client routing & set global ServerName
 RUN sed -i '/LoadModule rewrite_module/s/^#//' /usr/local/apache2/conf/httpd.conf && \
-    sed -i 's/AllowOverride None/AllowOverride All/g' /usr/local/apache2/conf/httpd.conf
+    sed -i 's/AllowOverride None/AllowOverride All/g' /usr/local/apache2/conf/httpd.conf && \
+    echo "ServerName localhost" >> /usr/local/apache2/conf/httpd.conf
 
 # Copy static React build artifacts to Apache web root
 COPY --from=builder /app/dist /usr/local/apache2/htdocs/
