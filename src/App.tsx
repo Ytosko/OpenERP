@@ -12,6 +12,10 @@ import { PosTerminalPage } from '@/pages/POS/PosTerminalPage';
 import { PrintDesignerStudio } from '@/components/print-designer/PrintDesignerStudio';
 import { ProductsPage } from '@/pages/Inventory/ProductsPage';
 import { InvoicesPage } from '@/pages/Sales/InvoicesPage';
+import { SuppliersPage } from '@/pages/Purchasing/SuppliersPage';
+import { TeamManagementPage } from '@/pages/Team/TeamManagementPage';
+import { PaymentGatewaysPage } from '@/pages/Settings/PaymentGatewaysPage';
+import { ReportsPage } from '@/pages/Reports/ReportsPage';
 import { GuidedSetupPage } from '@/pages/Onboarding/GuidedSetupPage';
 import { LoginPage } from '@/pages/Auth/LoginPage';
 import { SignupPage } from '@/pages/Auth/SignupPage';
@@ -53,6 +57,10 @@ export function App() {
             <Route path="print-designer" element={<PrintDesignerStudio />} />
             <Route path="products" element={<ProductsPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="team" element={<TeamManagementPage />} />
+            <Route path="payment-gateways" element={<PaymentGatewaysPage />} />
+            <Route path="reports" element={<ReportsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/pos" replace />} />

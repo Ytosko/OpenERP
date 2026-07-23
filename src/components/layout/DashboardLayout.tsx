@@ -10,10 +10,11 @@ import {
   Package,
   FileText,
   Users,
-  Settings,
+  CreditCard,
+  Truck,
+  BarChart3,
   LogOut,
   ChevronDown,
-  Sparkles,
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
@@ -30,6 +31,10 @@ export const DashboardLayout: React.FC = () => {
     { label: 'Print Designer', path: '/print-designer', icon: Printer },
     { label: 'Products & Inventory', path: '/products', icon: Package },
     { label: 'Sales & Invoices', path: '/invoices', icon: FileText },
+    { label: 'Suppliers & Receiving', path: '/suppliers', icon: Truck },
+    { label: 'Team & Multi-User Roles', path: '/team', icon: Users },
+    { label: 'Payment Processors', path: '/payment-gateways', icon: CreditCard },
+    { label: 'Financial Reports & Currency', path: '/reports', icon: BarChart3 },
   ];
 
   return (
@@ -43,14 +48,14 @@ export const DashboardLayout: React.FC = () => {
               <Terminal className="w-5 h-5" />
             </div>
             <div className="truncate">
-              <h1 className="font-bold text-white tracking-tight text-sm">MODULAR AI POS</h1>
-              <p className="text-[10px] text-slate-400">Print Engine & ERP</p>
+              <h1 className="font-bold text-white tracking-tight text-sm">MODULAR ERP POS</h1>
+              <p className="text-[10px] text-slate-400">Multi-User Retail OS</p>
             </div>
           </div>
 
           {/* Active Project Switcher */}
           <div className="p-3 border-b border-slate-800 bg-slate-950/50">
-            <div className="text-[9px] text-slate-500 font-bold mb-1 uppercase">ACTIVE PROJECT STORE</div>
+            <div className="text-[9px] text-slate-500 font-bold mb-1 uppercase">ACTIVE STORE / PROJECT</div>
             <div className="flex items-center justify-between text-white font-bold bg-slate-800/80 p-2 rounded border border-slate-700">
               <span className="truncate">{activeProject?.name || 'Hacker Mart Store'}</span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -74,7 +79,7 @@ export const DashboardLayout: React.FC = () => {
                   }
                 >
                   <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.label}</span>
+                  <span className="truncate">{item.label}</span>
                 </NavLink>
               );
             })}
@@ -89,9 +94,9 @@ export const DashboardLayout: React.FC = () => {
             </div>
             <div className="truncate flex-1">
               <div className="font-bold text-white text-[11px] truncate">
-                {user?.user_metadata?.full_name || user?.email || 'Alex Cashier'}
+                {user?.user_metadata?.full_name || user?.email || 'Alex Owner'}
               </div>
-              <div className="text-[9px] text-slate-400">Cashier Role</div>
+              <div className="text-[9px] text-slate-400">Store Owner / Admin</div>
             </div>
           </div>
 
