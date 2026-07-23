@@ -66,8 +66,11 @@ export const PosTerminalPage: React.FC = () => {
   const { data: products = [], isLoading: productsLoading, error: productsError } = useProducts();
   const { data: projectRecord } = useProjectRecord();
 
+  // Adjustable VAT / sales tax rate from Store Branding & Settings (e.g. Bangladesh 15%)
+  const taxRate = projectRecord?.settings.tax_rate ?? 0;
+
   // Exact Cents Integer Math Calculation
-  const { subtotal, grandTotal } = calculateCartTotals(cart, discountTotal, 0);
+  const { subtotal, tax, grandTotal } = calculateCartTotals(cart, discountTotal, taxRate);
   const changeDue = Math.max(0, fromCents(toCents(cashPaid) - toCents(grandTotal)));
 
   const filteredProducts = products.filter((p) =>
@@ -105,6 +108,7 @@ export const PosTerminalPage: React.FC = () => {
         })),
         p_payments: [{ method: paymentMethod, amount: paymentMethod === 'CASH' ? cashPaid : grandTotal }],
         p_discount_total: discountTotal,
+        p_tax_rate: taxRate,
       };
 
       const result = await executeSaleRPC(payload);
@@ -133,6 +137,7 @@ export const PosTerminalPage: React.FC = () => {
         items: [...cart],
         subtotal,
         discountTotal,
+        tax,
         grandTotal,
         cashPaid,
         changeDue,
@@ -330,6 +335,13 @@ export const PosTerminalPage: React.FC = () => {
             </div>
           )}
 
+          {taxRate > 0 && (
+            <div className="flex justify-between text-slate-600">
+              <span>VAT / TAX ({taxRate}%)</span>
+              <span>${tax.toFixed(2)}</span>
+            </div>
+          )}
+
           <div className="flex justify-between font-bold text-base text-slate-900 border-t border-slate-200 pt-2">
             <span>GRAND TOTAL</span>
             <span className="text-brand-600">${grandTotal.toFixed(2)}</span>
@@ -503,7 +515,7 @@ export const PosTerminalPage: React.FC = () => {
                   })),
                   subtotal: completedSale.subtotal,
                   discount: completedSale.discountTotal,
-                  tax: 0,
+                  tax: completedSale.tax ?? 0,
                   grandTotal: completedSale.grandTotal,
                 }}
               />

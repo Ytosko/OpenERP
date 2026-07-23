@@ -42,6 +42,27 @@ export const GuidedSetupPage: React.FC = () => {
       const projectId = data?.project_id as string;
       const storeId = data?.store_id as string;
 
+      // Sensible regional defaults (adjustable anytime in Branding & Settings):
+      // Bangladesh gets ৳ and the standard 15% VAT out of the box.
+      const CURRENCY_DEFAULTS: Record<string, { symbol: string; tax: number }> = {
+        BDT: { symbol: '৳', tax: 15 },
+        USD: { symbol: '$', tax: 0 },
+        EUR: { symbol: '€', tax: 0 },
+        GBP: { symbol: '£', tax: 20 },
+        CAD: { symbol: '$', tax: 5 },
+        INR: { symbol: '₹', tax: 18 },
+      };
+      const defaults = CURRENCY_DEFAULTS[currency] || { symbol: '$', tax: 0 };
+      if (projectId) {
+        const { error: settingsError } = await supabase
+          .from('projects')
+          .update({ settings: { currency_symbol: defaults.symbol, tax_rate: defaults.tax } })
+          .eq('id', projectId);
+        if (settingsError) {
+          console.error('Failed to set default tax settings:', settingsError.message);
+        }
+      }
+
       if (loadDemoCatalog && projectId && storeId) {
         const { error: seedError } = await supabase.rpc('seed_demo_catalog', {
           p_project_id: projectId,
@@ -142,9 +163,11 @@ export const GuidedSetupPage: React.FC = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white focus:border-brand-500 outline-none"
                 >
                   <option value="USD">USD ($)</option>
+                  <option value="BDT">BDT (৳)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="GBP">GBP (£)</option>
                   <option value="CAD">CAD ($)</option>
+                  <option value="INR">INR (₹)</option>
                 </select>
               </div>
             </div>

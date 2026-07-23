@@ -223,7 +223,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-slate-500 block mb-1 font-bold">DEFAULT SALES TAX (%)</label>
+              <label className="text-slate-500 block mb-1 font-bold">VAT / SALES TAX (%) — e.g. Bangladesh 15</label>
               <input
                 type="number"
                 step="0.01"

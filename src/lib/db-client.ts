@@ -8,6 +8,7 @@ export interface ExecuteSalePayload {
   p_items: Array<{ product_id: string; quantity: number; unit_price: number }>;
   p_payments: Array<{ method: string; amount: number }>;
   p_discount_total: number;
+  p_tax_rate?: number;
   p_notes?: string | null;
 }
 
