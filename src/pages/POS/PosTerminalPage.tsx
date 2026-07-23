@@ -9,6 +9,7 @@ import { executeSaleRPC } from '@/lib/db-client';
 import { openCashDrawer } from '@/lib/hardware-printer';
 import { DigitalReceiptModal } from '@/components/receipt/DigitalReceiptModal';
 import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
+import { calculateCartTotals, toCents, fromCents } from '@/lib/money';
 import {
   Search,
   ShoppingCart,
@@ -24,6 +25,8 @@ import {
   Share2,
   Zap,
   FolderOpen,
+  Cloud,
+  CloudOff,
 } from 'lucide-react';
 
 const MOCK_PRODUCTS: PosProduct[] = [
@@ -70,9 +73,9 @@ export const PosTerminalPage: React.FC = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(activePrintTemplate.id);
 
-  const subtotal = cart.reduce((acc, item) => acc + item.unit_price * item.quantity, 0);
-  const grandTotal = Math.max(0, subtotal - discountTotal);
-  const changeDue = Math.max(0, cashPaid - grandTotal);
+  // Exact Cents Integer Math Calculation
+  const { subtotal, grandTotal } = calculateCartTotals(cart, discountTotal, 0);
+  const changeDue = Math.max(0, fromCents(toCents(cashPaid) - toCents(grandTotal)));
 
   const filteredProducts = MOCK_PRODUCTS.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,6 +115,7 @@ export const PosTerminalPage: React.FC = () => {
       }
 
       const invoiceNum = result?.invoice_number || `INV-${Date.now().toString().slice(-6)}`;
+      const isOfflineQueued = result?.offlineQueued ?? false;
 
       recordCompletedSale({
         id: `inv-${Date.now()}`,
@@ -121,7 +125,7 @@ export const PosTerminalPage: React.FC = () => {
         items_count: cart.reduce((sum, item) => sum + item.quantity, 0),
         total_amount: grandTotal,
         payment_method: paymentMethod,
-        status: 'completed',
+        status: isOfflineQueued ? 'queued_offline' : 'completed',
       });
 
       setCompletedSale({
@@ -133,6 +137,7 @@ export const PosTerminalPage: React.FC = () => {
         cashPaid,
         changeDue,
         date: new Date().toLocaleString(),
+        offlineQueued: isOfflineQueued,
       });
 
       setCheckoutOpen(false);
@@ -159,7 +164,7 @@ export const PosTerminalPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search product name, SKU, or scan barcode..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-brand-500"
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-brand-500 font-bold"
             />
           </div>
 
@@ -405,7 +410,7 @@ export const PosTerminalPage: React.FC = () => {
         </div>
       )}
 
-      {/* Completed Sale Print Receipt Modal with Template Picker */}
+      {/* Completed Sale Print Receipt Modal */}
       {completedSale && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl font-mono text-xs flex flex-col items-center space-y-4">
@@ -414,6 +419,23 @@ export const PosTerminalPage: React.FC = () => {
             </div>
             <h3 className="text-sm font-bold text-slate-900">SALE COMPLETED!</h3>
             <p className="text-slate-500 text-center font-bold">{completedSale.invoice_number}</p>
+
+            {/* Explicit Sync / Offline Queued Status Banner */}
+            {completedSale.offlineQueued ? (
+              <div className="w-full bg-amber-50 border border-amber-300 text-amber-800 p-2 rounded-lg text-[11px] font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <CloudOff className="w-4 h-4 text-amber-600" /> OFFLINE QUEUED
+                </span>
+                <span className="text-[10px]">Saved to Local Queue</span>
+              </div>
+            ) : (
+              <div className="w-full bg-emerald-50 border border-emerald-300 text-emerald-800 p-2 rounded-lg text-[11px] font-bold flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Cloud className="w-4 h-4 text-emerald-600" /> SUPABASE SYNCED
+                </span>
+                <span className="text-[10px]">Live Database Written</span>
+              </div>
+            )}
 
             {/* Template Selector Dropdown */}
             <div className="w-full bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
