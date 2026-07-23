@@ -5,6 +5,8 @@ import {
   STARTER_80MM_RECEIPT,
   STARTER_58MM_RECEIPT,
   STARTER_4X6_LABEL,
+  STARTER_60X40_LABEL,
+  STARTER_50X30_LABEL,
   PageUnit,
   PageMode,
 } from '@/types/print-designer';
@@ -23,7 +25,7 @@ interface PrintDesignerState {
   setMode: (mode: 'easy' | 'advanced') => void;
   setSchema: (schema: TemplateSchema) => void;
   selectTemplate: (id: string) => void;
-  createNewTemplate: (name: string, type: '80mm' | '58mm' | '4x6') => void;
+  createNewTemplate: (name: string, type: string) => void;
   duplicateTemplate: () => void;
   deleteTemplate: (id: string) => void;
   uploadLogoImage: (dataUrl: string) => void;
@@ -47,11 +49,17 @@ interface PrintDesignerState {
 
 export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
   mode: 'easy',
-  templates: [STARTER_80MM_RECEIPT, STARTER_58MM_RECEIPT, STARTER_4X6_LABEL],
-  schema: STARTER_80MM_RECEIPT,
+  templates: [
+    STARTER_4X6_LABEL,
+    STARTER_80MM_RECEIPT,
+    STARTER_58MM_RECEIPT,
+    STARTER_60X40_LABEL,
+    STARTER_50X30_LABEL,
+  ],
+  schema: STARTER_4X6_LABEL,
   selectedElementId: null,
   zoom: 100,
-  history: [STARTER_80MM_RECEIPT],
+  history: [STARTER_4X6_LABEL],
   historyIndex: 0,
   saving: false,
   lastSavedAt: null,
@@ -73,9 +81,11 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
 
   createNewTemplate: (name, type) => {
     const { templates } = get();
-    let base = STARTER_80MM_RECEIPT;
+    let base = STARTER_4X6_LABEL;
+    if (type === '80mm') base = STARTER_80MM_RECEIPT;
     if (type === '58mm') base = STARTER_58MM_RECEIPT;
-    if (type === '4x6') base = STARTER_4X6_LABEL;
+    if (type === '60x40') base = STARTER_60X40_LABEL;
+    if (type === '50x30') base = STARTER_50X30_LABEL;
 
     const newSchema: TemplateSchema = {
       ...base,
@@ -171,7 +181,7 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
       enabled: true,
       x: 5,
       y: 10,
-      width: 50,
+      width: Math.min(50, schema.page.width - 10),
       height: 10,
       zIndex: schema.elements.length + 1,
       style: { fontSize: 12, textAlign: 'left' },

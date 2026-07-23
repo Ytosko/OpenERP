@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
-import { PageUnit } from '@/types/print-designer';
+import { INDUSTRIAL_LABEL_PRESETS, PageUnit } from '@/types/print-designer';
 import {
   Trash2,
   Sliders,
@@ -14,6 +14,7 @@ import {
   ArrowDown,
   Eye,
   EyeOff,
+  Tag,
 } from 'lucide-react';
 
 export const AdvancedModeEditor: React.FC = () => {
@@ -31,33 +32,59 @@ export const AdvancedModeEditor: React.FC = () => {
 
   const selectedEl = schema.elements.find((el) => el.id === selectedElementId);
 
+  const handleSelectPreset = (presetName: string) => {
+    const found = INDUSTRIAL_LABEL_PRESETS.find((p) => p.name === presetName);
+    if (found) {
+      setPageSize(found.width, found.height, found.unit, found.mode);
+    }
+  };
+
   return (
     <div className="space-y-5 text-xs font-mono">
+      {/* Industrial Label Size Preset Selector */}
+      <div className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-2">
+        <label className="font-bold text-brand-800 flex items-center gap-1.5 uppercase text-[11px]">
+          <Tag className="w-4 h-4 text-brand-600" /> LABEL DIMENSION PRESETS
+        </label>
+        <select
+          onChange={(e) => handleSelectPreset(e.target.value)}
+          defaultValue=""
+          className="w-full p-2 bg-white border border-brand-300 rounded font-bold text-slate-900 focus:border-brand-500 outline-none cursor-pointer text-xs"
+        >
+          <option value="" disabled>-- Select Industrial Label Size --</option>
+          {INDUSTRIAL_LABEL_PRESETS.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Add New Element Buttons */}
       <div>
         <label className="font-bold text-slate-700 block mb-2 uppercase">ADD ELEMENT TO CANVAS</label>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => addElement('text', 'Custom Text')}
-            className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 hover:bg-brand-50 text-slate-700 flex items-center gap-1.5 cursor-pointer bg-white"
+            className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 hover:bg-brand-50 text-slate-700 flex items-center gap-1.5 cursor-pointer bg-white font-bold"
           >
             <Type className="w-3.5 h-3.5 text-brand-500" /> + Text
           </button>
           <button
             onClick={() => addElement('barcode', 'Barcode Code128')}
-            className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 hover:bg-brand-50 text-slate-700 flex items-center gap-1.5 cursor-pointer bg-white"
+            className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 hover:bg-brand-50 text-slate-700 flex items-center gap-1.5 cursor-pointer bg-white font-bold"
           >
             <Barcode className="w-3.5 h-3.5 text-brand-500" /> + Barcode
           </button>
           <button
             onClick={() => addElement('qr_code', 'QR Code')}
-            className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 hover:bg-brand-50 text-slate-700 flex items-center gap-1.5 cursor-pointer bg-white"
+            className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 hover:bg-brand-50 text-slate-700 flex items-center gap-1.5 cursor-pointer bg-white font-bold"
           >
             <QrCode className="w-3.5 h-3.5 text-brand-500" /> + QR Code
           </button>
           <button
             onClick={() => addElement('image', 'Custom Logo / Image')}
-            className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 hover:bg-brand-50 text-slate-700 flex items-center gap-1.5 cursor-pointer bg-white"
+            className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 hover:bg-brand-50 text-slate-700 flex items-center gap-1.5 cursor-pointer bg-white font-bold"
           >
             <ImageIcon className="w-3.5 h-3.5 text-brand-500" /> + Image
           </button>
@@ -160,8 +187,8 @@ export const AdvancedModeEditor: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="p-3 bg-brand-50 border border-brand-200 rounded-lg text-brand-700 text-center font-bold">
-          Click any item in the canvas or list below to drag & edit.
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-center font-bold">
+          Click any item on the canvas or list below to drag & edit.
         </div>
       )}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TemplateSchema, PrintElement } from '@/types/print-designer';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { Move, Trash2 } from 'lucide-react';
@@ -50,10 +50,9 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
   const { selectedElementId, setSelectedElementId, updateElement, deleteElement } =
     usePrintDesignerStore();
 
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState<{ startX: number; startY: number; initialElX: number; initialElY: number } | null>(null);
-
-  const pxPerUnit = page.unit === 'mm' ? 3.78 : page.unit === 'cm' ? 37.8 : page.unit === 'inch' ? 96 : 1;
 
   const getWidthCss = () => `${page.width}${page.unit}`;
   const getHeightCss = () => (page.mode === 'continuous' && isPrintOnly ? 'auto' : `${page.height || 150}${page.unit}`);
@@ -73,14 +72,21 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
   };
 
   useEffect(() => {
-    if (!draggingId || !dragStart || isPrintOnly) return;
+    if (!draggingId || !dragStart || isPrintOnly || !canvasRef.current) return;
 
     const handleWindowMouseMove = (e: MouseEvent) => {
+      if (!canvasRef.current || !dragStart) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+
+      // Dynamic visual scale calculation (pixels per document unit)
+      const scaleX = rect.width / (page.width || 1);
+      const scaleY = rect.height / (page.height || 150);
+
       const dxPx = e.clientX - dragStart.startX;
       const dyPx = e.clientY - dragStart.startY;
 
-      const dxUnits = Math.round(dxPx / pxPerUnit);
-      const dyUnits = Math.round(dyPx / pxPerUnit);
+      const dxUnits = Math.round(dxPx / (scaleX || 1));
+      const dyUnits = Math.round(dyPx / (scaleY || 1));
 
       const newX = Math.max(0, dragStart.initialElX + dxUnits);
       const newY = Math.max(0, dragStart.initialElY + dyUnits);
@@ -100,10 +106,11 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
     };
-  }, [draggingId, dragStart, isPrintOnly, pxPerUnit, updateElement]);
+  }, [draggingId, dragStart, isPrintOnly, page.width, page.height, updateElement]);
 
   return (
     <div
+      ref={canvasRef}
       id="printable-thermal-canvas"
       onClick={() => !isPrintOnly && setSelectedElementId(null)}
       className={`bg-white text-slate-950 font-mono relative shadow-xl overflow-visible select-none border border-slate-300 ${className}`}

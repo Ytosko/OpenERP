@@ -258,21 +258,90 @@ export const STARTER_58MM_RECEIPT: TemplateSchema = {
 
 export const STARTER_4X6_LABEL: TemplateSchema = {
   id: 'tmpl-4x6-label',
-  name: '4x6 Shipping & Warehouse Label',
+  name: '102mm x 152mm (4x6 Inch Shipping Label)',
   version: 1,
   page: {
     mode: 'fixed',
-    width: 4,
-    height: 6,
-    unit: 'inch',
+    width: 102,
+    height: 152,
+    unit: 'mm',
     orientation: 'portrait',
-    margins: { top: 0.2, right: 0.2, bottom: 0.2, left: 0.2 },
+    margins: { top: 4, right: 4, bottom: 4, left: 4 },
     dpi: 300,
   },
-  editor: { gridEnabled: true, gridSize: 0.1, snapEnabled: true },
+  editor: { gridEnabled: true, gridSize: 2, snapEnabled: true },
   elements: [
-    { id: 'e-label-title', type: 'text', label: 'Label Title', enabled: true, content: 'EXPRESS SHIPPING LABEL', x: 0.2, y: 0.3, width: 3.6, height: 0.4, zIndex: 1, style: { fontSize: 16, fontWeight: 'bold', textAlign: 'center' } },
-    { id: 'e-label-barcode', type: 'barcode', label: 'Tracking Barcode', enabled: true, x: 0.5, y: 1.0, width: 3.0, height: 1.2, zIndex: 2, style: { textAlign: 'center' } },
-    { id: 'e-label-qr', type: 'qr_code', label: 'QR Code', enabled: true, x: 1.3, y: 2.5, width: 1.4, height: 1.4, zIndex: 3, style: { textAlign: 'center' } },
+    { id: 'e-label-title', type: 'text', label: 'Label Title', enabled: true, content: 'EXPRESS SHIPPING LABEL', x: 6, y: 8, width: 90, height: 10, zIndex: 1, style: { fontSize: 16, fontWeight: 'bold', textAlign: 'center' } },
+    { id: 'e-label-barcode', type: 'barcode', label: 'Tracking Barcode', enabled: true, x: 11, y: 25, width: 80, height: 25, zIndex: 2, style: { textAlign: 'center' } },
+    { id: 'e-label-qr', type: 'qr_code', label: 'QR Code', enabled: true, x: 36, y: 60, width: 30, height: 30, zIndex: 3, style: { textAlign: 'center' } },
+    { id: 'e-label-footer', type: 'footer_text', label: 'Footer Note', enabled: true, content: 'HANDLE WITH CARE - FRAGILE', x: 6, y: 100, width: 90, height: 8, zIndex: 4, style: { fontSize: 10, textAlign: 'center', fontWeight: 'bold' } },
   ],
 };
+
+export const STARTER_60X40_LABEL: TemplateSchema = {
+  id: 'tmpl-60x40',
+  name: '60mm x 40mm Product Barcode Tag',
+  version: 1,
+  page: {
+    mode: 'fixed',
+    width: 60,
+    height: 40,
+    unit: 'mm',
+    orientation: 'portrait',
+    margins: { top: 2, right: 2, bottom: 2, left: 2 },
+    dpi: 203,
+  },
+  editor: { gridEnabled: true, gridSize: 1, snapEnabled: true },
+  elements: [
+    { id: 'e-60-name', type: 'store_name', label: 'Item Name', enabled: true, content: 'Double Espresso 12oz', x: 2, y: 2, width: 56, height: 6, zIndex: 1, style: { fontSize: 10, fontWeight: 'bold', textAlign: 'center' } },
+    { id: 'e-60-price', type: 'grand_total', label: 'Price', enabled: true, content: '$3.75', x: 2, y: 9, width: 56, height: 6, zIndex: 2, style: { fontSize: 12, fontWeight: 'bold', textAlign: 'center' } },
+    { id: 'e-60-barcode', type: 'barcode', label: 'Barcode', enabled: true, x: 5, y: 16, width: 50, height: 18, zIndex: 3, style: { textAlign: 'center' } },
+  ],
+};
+
+export const STARTER_50X30_LABEL: TemplateSchema = {
+  id: 'tmpl-50x30',
+  name: '50mm x 30mm Retail Price Tag',
+  version: 1,
+  page: {
+    mode: 'fixed',
+    width: 50,
+    height: 30,
+    unit: 'mm',
+    orientation: 'portrait',
+    margins: { top: 2, right: 2, bottom: 2, left: 2 },
+    dpi: 203,
+  },
+  editor: { gridEnabled: true, gridSize: 1, snapEnabled: true },
+  elements: [
+    { id: 'e-50-name', type: 'store_name', label: 'Item Name', enabled: true, content: 'Oat Milk Latte', x: 2, y: 2, width: 46, height: 5, zIndex: 1, style: { fontSize: 9, fontWeight: 'bold', textAlign: 'center' } },
+    { id: 'e-50-barcode', type: 'barcode', label: 'Barcode', enabled: true, x: 5, y: 8, width: 40, height: 15, zIndex: 2, style: { textAlign: 'center' } },
+    { id: 'e-50-price', type: 'grand_total', label: 'Price', enabled: true, content: '$5.50', x: 2, y: 24, width: 46, height: 4, zIndex: 3, style: { fontSize: 10, fontWeight: 'bold', textAlign: 'center' } },
+  ],
+};
+
+export interface LabelDimensionPreset {
+  name: string;
+  width: number;
+  height: number;
+  unit: PageUnit;
+  mode: PageMode;
+}
+
+export const INDUSTRIAL_LABEL_PRESETS: LabelDimensionPreset[] = [
+  { name: '102mm x 152mm (4" x 6" Shipping Label)', width: 102, height: 152, unit: 'mm', mode: 'fixed' },
+  { name: '101mm x 151mm (Shipping Label)', width: 101, height: 151, unit: 'mm', mode: 'fixed' },
+  { name: '101mm x 50mm (Large Product Tag)', width: 101, height: 50, unit: 'mm', mode: 'fixed' },
+  { name: '82mm x 102mm (Medium Tag)', width: 82, height: 102, unit: 'mm', mode: 'fixed' },
+  { name: '82mm x 51mm (Address Label)', width: 82, height: 51, unit: 'mm', mode: 'fixed' },
+  { name: '60mm x 40mm (Standard Barcode Label)', width: 60, height: 40, unit: 'mm', mode: 'fixed' },
+  { name: '56mm x 38mm (Product Tag)', width: 56, height: 38, unit: 'mm', mode: 'fixed' },
+  { name: '50mm x 75mm (Vertical Tag)', width: 50, height: 75, unit: 'mm', mode: 'fixed' },
+  { name: '50mm x 38mm (Product Label)', width: 50, height: 38, unit: 'mm', mode: 'fixed' },
+  { name: '50mm x 30mm (Retail Price Tag)', width: 50, height: 30, unit: 'mm', mode: 'fixed' },
+  { name: '50mm x 25mm (Small Tag)', width: 50, height: 25, unit: 'mm', mode: 'fixed' },
+  { name: '38mm x 25mm (Jewelry & Small Item)', width: 38, height: 25, unit: 'mm', mode: 'fixed' },
+  { name: '80mm Continuous Thermal Roll', width: 80, height: 150, unit: 'mm', mode: 'continuous' },
+  { name: '58mm Continuous Thermal Roll', width: 58, height: 120, unit: 'mm', mode: 'continuous' },
+  { name: '104mm Continuous Label Roll', width: 104, height: 180, unit: 'mm', mode: 'continuous' },
+];
