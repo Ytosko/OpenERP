@@ -1,5 +1,18 @@
 import { create } from 'zustand';
-import { User, Session } from '@supabase/supabase-js';
+
+export interface User {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    full_name?: string;
+    avatar_url?: string;
+  };
+}
+
+export interface Session {
+  access_token: string;
+  user?: User;
+}
 
 export interface ProjectInfo {
   id: string;
