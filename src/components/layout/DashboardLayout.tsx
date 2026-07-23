@@ -153,19 +153,19 @@ export const DashboardLayout: React.FC = () => {
         <div className="p-4 border-t border-slate-800 bg-slate-950/40 space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-brand-500/20 text-brand-500 flex items-center justify-center font-bold text-xs">
-              {user?.email?.charAt(0).toUpperCase() || 'A'}
+              {user?.full_name?.charAt(0).toUpperCase() || 'A'}
             </div>
             <div className="truncate flex-1">
               <div className="font-bold text-white text-[11px] truncate">
-                {user?.user_metadata?.full_name || user?.email || 'Alex Owner'}
+                {user?.full_name || user?.employee_code || 'Alex Owner'}
               </div>
-              <div className="text-[9px] text-slate-400">Store Owner / Admin</div>
+              <div className="text-[9px] text-slate-400 uppercase">Role: {user?.role || 'Cashier'}</div>
             </div>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-2 border border-slate-800 rounded text-slate-400 hover:text-red-400 hover:border-red-900 hover:bg-red-950/20 transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2 border border-slate-800 rounded text-slate-400 hover:text-red-400 hover:border-red-900 hover:bg-red-950/20 transition-all cursor-pointer font-bold"
           >
             <LogOut className="w-3.5 h-3.5" /> LOG OUT
           </button>

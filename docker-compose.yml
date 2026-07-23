@@ -11,8 +11,8 @@ services:
       - "3000:80"
     environment:
       - VITE_APP_URL=${SERVICE_URL_APP:-https://pos.ytosko.dev}
-      - VITE_SUPABASE_URL=${SERVICE_URL_APP:-https://pos.ytosko.dev}
-      - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvcy1lcnAiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY3MjUxMjAwMCwiZXhwIjoyMDE4MDg4MDAwfQ.placeholder
+      - VITE_SUPERADMIN_USER=${SUPERADMIN_USER:-superadmin}
+      - VITE_SUPERADMIN_PASS=${SUPERADMIN_PASS:-admin123}
       - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
     depends_on:
       db:

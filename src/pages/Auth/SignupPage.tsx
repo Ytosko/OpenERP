@@ -2,29 +2,30 @@
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Terminal, Lock, Mail, User, ArrowRight, AlertCircle } from 'lucide-react';
+import { Terminal, Lock, KeyRound, User, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export const SignupPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+  const [employeeCode, setEmployeeCode] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const { setAuth } = useAuthStore();
+  const { loginWithEmployeeCode } = useAuthStore();
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setAuth(
-      { id: `usr-${Date.now()}`, email, user_metadata: { full_name: fullName } } as any,
-      { access_token: 'demo-token' } as any
-    );
+    const res = loginWithEmployeeCode(employeeCode, password);
     setLoading(false);
-    navigate('/onboarding');
+    if (res.success) {
+      navigate('/onboarding');
+    } else {
+      setErrorMsg(res.error || 'Registration failed.');
+    }
   };
 
   return (
@@ -39,7 +40,7 @@ export const SignupPage: React.FC = () => {
 
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
         <h2 className="text-sm font-bold text-white uppercase border-b border-slate-800 pb-3">
-          REGISTER ACCOUNT
+          REGISTER EMPLOYEE ACCOUNT
         </h2>
 
         {errorMsg && (
@@ -66,16 +67,16 @@ export const SignupPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-slate-400 block mb-1">EMAIL ADDRESS</label>
+            <label className="text-slate-400 block mb-1">EMPLOYEE CODE / USERNAME</label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+              <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="cashier@store.com"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-brand-500 outline-none"
+                value={employeeCode}
+                onChange={(e) => setEmployeeCode(e.target.value)}
+                placeholder="EMP-101"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-brand-500 outline-none uppercase font-bold"
               />
             </div>
           </div>
