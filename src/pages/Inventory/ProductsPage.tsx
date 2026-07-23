@@ -1,32 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Package, Plus, Search, AlertTriangle, ArrowUpRight, ArrowDownRight, Tag } from 'lucide-react';
-
-interface ProductItem {
-  id: string;
-  sku: string;
-  barcode: string;
-  name: string;
-  category: string;
-  sales_price: number;
-  cost_price: number;
-  stock_quantity: number;
-  low_stock_threshold: number;
-}
-
-const INITIAL_PRODUCTS: ProductItem[] = [
-  { id: '1', sku: 'COF-101', barcode: '8901001001', name: 'Double Espresso 12oz', category: 'Coffee', sales_price: 3.75, cost_price: 0.60, stock_quantity: 999, low_stock_threshold: 0 },
-  { id: '2', sku: 'COF-102', barcode: '8901001002', name: 'Oat Milk Latte 16oz', category: 'Coffee', sales_price: 5.50, cost_price: 1.20, stock_quantity: 999, low_stock_threshold: 0 },
-  { id: '3', sku: 'BAK-201', barcode: '8902001001', name: 'Fresh Butter Croissant', category: 'Bakery', sales_price: 4.25, cost_price: 1.10, stock_quantity: 24, low_stock_threshold: 10 },
-  { id: '4', sku: 'BAK-202', barcode: '8902001002', name: 'Chocolate Almond Muffin', category: 'Bakery', sales_price: 4.50, cost_price: 1.25, stock_quantity: 3, low_stock_threshold: 5 },
-  { id: '5', sku: 'MER-301', barcode: '8903001001', name: 'Ethiopia Whole Bean 250g', category: 'Beans', sales_price: 18.50, cost_price: 8.00, stock_quantity: 4, low_stock_threshold: 6 },
-];
+import { Package, Plus, Search, AlertTriangle, AlertCircle } from 'lucide-react';
+import { useProducts, useAddProduct } from '@/hooks/useProducts';
 
 export const ProductsPage: React.FC = () => {
-  const [products, setProducts] = useState<ProductItem[]>(INITIAL_PRODUCTS);
+  const { data: products = [], isLoading, error } = useProducts();
+  const addProduct = useAddProduct();
+
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState({
     sku: '',
     name: '',
@@ -39,26 +23,29 @@ export const ProductsPage: React.FC = () => {
   const filtered = products.filter(
     (p) =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase())
+      p.sku.toLowerCase().includes(search.toLowerCase()) ||
+      p.category_name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleAddProduct = (e: React.FormEvent) => {
+  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    const created: ProductItem = {
-      id: `p-${Date.now()}`,
-      sku: newProduct.sku || `SKU-${Date.now().toString().slice(-4)}`,
-      barcode: `890${Date.now().toString().slice(-7)}`,
-      name: newProduct.name,
-      category: newProduct.category,
-      sales_price: newProduct.sales_price,
-      cost_price: newProduct.cost_price,
-      stock_quantity: newProduct.stock_quantity,
-      low_stock_threshold: 5,
-    };
+    setFormError(null);
 
-    setProducts([created, ...products]);
-    setShowModal(false);
-    setNewProduct({ sku: '', name: '', category: 'General', sales_price: 0, cost_price: 0, stock_quantity: 10 });
+    try {
+      await addProduct.mutateAsync({
+        sku: newProduct.sku || `SKU-${Date.now().toString().slice(-4)}`,
+        name: newProduct.name,
+        category_name: newProduct.category,
+        sales_price: newProduct.sales_price,
+        cost_price: newProduct.cost_price,
+        opening_qty: newProduct.stock_quantity,
+        low_stock_threshold: 5,
+      });
+      setShowModal(false);
+      setNewProduct({ sku: '', name: '', category: 'General', sales_price: 0, cost_price: 0, stock_quantity: 10 });
+    } catch (err: any) {
+      setFormError(err?.message || 'Failed to save product.');
+    }
   };
 
   return (
@@ -92,6 +79,19 @@ export const ProductsPage: React.FC = () => {
         />
       </div>
 
+      {isLoading && (
+        <div className="p-4 bg-white border border-slate-200 rounded-xl text-slate-400 text-center">
+          LOADING PRODUCTS FROM DATABASE...
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{(error as Error).message}</span>
+        </div>
+      )}
+
       {/* Products Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
@@ -108,23 +108,33 @@ export const ProductsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-800">
+              {!isLoading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                    No products yet. Click ADD PRODUCT to create your first item.
+                  </td>
+                </tr>
+              )}
               {filtered.map((p) => {
-                const isLowStock = p.stock_quantity <= p.low_stock_threshold && p.low_stock_threshold > 0;
+                const isLowStock =
+                  p.track_stock && p.stock_quantity <= p.low_stock_threshold && p.low_stock_threshold > 0;
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-all">
                     <td className="p-3">
                       <div className="font-bold text-slate-900">{p.sku}</div>
-                      <div className="text-[10px] text-slate-400">{p.barcode}</div>
+                      <div className="text-[10px] text-slate-400">{p.barcode || '—'}</div>
                     </td>
                     <td className="p-3 font-semibold text-slate-900">{p.name}</td>
                     <td className="p-3">
                       <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px]">
-                        {p.category}
+                        {p.category_name}
                       </span>
                     </td>
                     <td className="p-3 text-right">${p.cost_price.toFixed(2)}</td>
                     <td className="p-3 text-right font-bold text-brand-600">${p.sales_price.toFixed(2)}</td>
-                    <td className="p-3 text-center font-bold">{p.stock_quantity}</td>
+                    <td className="p-3 text-center font-bold">
+                      {p.track_stock ? p.stock_quantity : '∞'}
+                    </td>
                     <td className="p-3 text-center">
                       {isLowStock ? (
                         <span className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
@@ -149,6 +159,14 @@ export const ProductsPage: React.FC = () => {
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <h3 className="text-sm font-bold text-slate-900 border-b pb-2">ADD NEW PRODUCT</h3>
+
+            {formError && (
+              <div className="p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg flex items-start gap-2 font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-tight">{formError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleAddProduct} className="space-y-3">
               <div>
                 <label className="text-slate-500 block mb-1">PRODUCT NAME</label>
@@ -227,9 +245,10 @@ export const ProductsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer"
+                  disabled={addProduct.isPending}
+                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer disabled:opacity-50"
                 >
-                  SAVE PRODUCT
+                  {addProduct.isPending ? 'SAVING...' : 'SAVE PRODUCT'}
                 </button>
               </div>
             </form>

@@ -38,13 +38,6 @@ export interface CompletedSaleRecord {
   status: string;
 }
 
-const INITIAL_SALES: CompletedSaleRecord[] = [
-  { id: 'inv-101', invoice_number: 'INV-20260723-00042', customer_name: 'Walk-in Customer', date: '2026-07-23 05:30', items_count: 4, total_amount: 17.63, payment_method: 'CASH', status: 'completed' },
-  { id: 'inv-102', invoice_number: 'INV-20260723-00041', customer_name: 'Sarah Connor', date: '2026-07-23 04:15', items_count: 2, total_amount: 9.25, payment_method: 'CARD', status: 'completed' },
-  { id: 'inv-103', invoice_number: 'INV-20260723-00040', customer_name: 'John Doe', date: '2026-07-23 03:40', items_count: 1, total_amount: 18.50, payment_method: 'QR_PAY', status: 'completed' },
-  { id: 'inv-104', invoice_number: 'INV-20260723-00039', customer_name: 'Walk-in Customer', date: '2026-07-23 02:10', items_count: 3, total_amount: 12.99, payment_method: 'CASH', status: 'completed' },
-];
-
 interface PosState {
   cart: CartItem[];
   selectedCategory: string | null;
@@ -83,7 +76,7 @@ export const usePosStore = create<PosState>((set, get) => ({
   cashPaid: 0,
   checkoutOpen: false,
   heldSales: [],
-  completedSales: INITIAL_SALES,
+  completedSales: [],
 
   addToCart: (product) => {
     const { cart } = get();

@@ -1,20 +1,27 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FileText, Printer, Eye, Search, FolderOpen } from 'lucide-react';
+import { FileText, Printer, Eye, Search, FolderOpen, AlertCircle, RefreshCw } from 'lucide-react';
 import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
 import { usePosStore, CompletedSaleRecord } from '@/store/usePosStore';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useInvoices } from '@/hooks/useInvoices';
 
 export const InvoicesPage: React.FC = () => {
-  const { completedSales } = usePosStore();
+  const { completedSales: sessionSales } = usePosStore();
   const { activeProject } = useAuthStore();
   const { templates, schema: activePrintTemplate } = usePrintDesignerStore();
+  const { data: dbInvoices = [], isLoading, error, refetch, isFetching } = useInvoices();
 
   const [selectedInvoice, setSelectedInvoice] = useState<CompletedSaleRecord | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(activePrintTemplate.id);
   const [search, setSearch] = useState('');
+
+  // DB is the source of truth; session sales queued offline (not yet in the DB)
+  // are shown on top so the cashier can see they exist but are unsynced.
+  const offlineQueuedSales = sessionSales.filter((s) => s.status === 'queued_offline');
+  const completedSales = [...offlineQueuedSales, ...dbInvoices];
 
   const filtered = completedSales.filter(
     (inv) =>
@@ -35,7 +42,28 @@ export const InvoicesPage: React.FC = () => {
           </h2>
           <p className="text-slate-500 text-[11px] mt-0.5">Immutable audit ledger of all POS transactions and receipts</p>
         </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="p-2 border border-slate-200 rounded-lg hover:border-brand-500 cursor-pointer text-slate-600"
+          title="Reload from database"
+        >
+          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+        </button>
       </div>
+
+      {isLoading && (
+        <div className="p-4 bg-white border border-slate-200 rounded-xl text-slate-400 text-center">
+          LOADING INVOICES FROM DATABASE...
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{(error as Error).message}</span>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="relative">

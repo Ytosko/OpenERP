@@ -2,30 +2,39 @@
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Terminal, Lock, KeyRound, User, ArrowRight, AlertCircle } from 'lucide-react';
+import { Terminal, Lock, Mail, User, ArrowRight, AlertCircle, MailCheck } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export const SignupPage: React.FC = () => {
   const [fullName, setFullName] = useState('');
-  const [employeeCode, setEmployeeCode] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [confirmSent, setConfirmSent] = useState(false);
 
   const navigate = useNavigate();
-  const { loginWithEmployeeCode } = useAuthStore();
+  const { signUpWithEmail } = useAuthStore();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
 
-    const res = loginWithEmployeeCode(employeeCode, password);
+    const res = await signUpWithEmail(fullName, email, password);
     setLoading(false);
-    if (res.success) {
-      navigate('/onboarding');
-    } else {
+
+    if (!res.success) {
       setErrorMsg(res.error || 'Registration failed.');
+      return;
     }
+
+    if (res.needsEmailConfirm) {
+      setConfirmSent(true);
+      return;
+    }
+
+    navigate('/onboarding');
   };
 
   return (
@@ -40,7 +49,7 @@ export const SignupPage: React.FC = () => {
 
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
         <h2 className="text-sm font-bold text-white uppercase border-b border-slate-800 pb-3">
-          REGISTER EMPLOYEE ACCOUNT
+          CREATE YOUR ACCOUNT
         </h2>
 
         {errorMsg && (
@@ -50,61 +59,82 @@ export const SignupPage: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSignup} className="space-y-4">
-          <div>
-            <label className="text-slate-400 block mb-1">FULL NAME</label>
-            <div className="relative">
-              <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Alex Cashier"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-brand-500 outline-none"
-              />
+        {confirmSent ? (
+          <div className="p-4 bg-emerald-950/60 border border-emerald-800 text-emerald-300 rounded-lg space-y-2">
+            <div className="flex items-center gap-2 font-bold text-emerald-200">
+              <MailCheck className="w-4 h-4" /> CONFIRM YOUR EMAIL
             </div>
+            <p className="leading-relaxed">
+              We sent a confirmation link to <span className="font-bold">{email}</span>. Click it,
+              then sign in to finish setting up your store.
+            </p>
+            <Link
+              to="/login"
+              className="inline-block mt-1 text-brand-500 font-bold hover:underline"
+            >
+              Go to Sign In →
+            </Link>
           </div>
-
-          <div>
-            <label className="text-slate-400 block mb-1">EMPLOYEE CODE / USERNAME</label>
-            <div className="relative">
-              <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="text"
-                required
-                value={employeeCode}
-                onChange={(e) => setEmployeeCode(e.target.value)}
-                placeholder="EMP-101"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-brand-500 outline-none uppercase font-bold"
-              />
+        ) : (
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div>
+              <label className="text-slate-400 block mb-1">FULL NAME</label>
+              <div className="relative">
+                <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Alex Cashier"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-brand-500 outline-none"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="text-slate-400 block mb-1">PASSWORD</label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-brand-500 outline-none"
-              />
+            <div>
+              <label className="text-slate-400 block mb-1">EMAIL</label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@yourstore.com"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-brand-500 outline-none"
+                />
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-lg shadow-hacker-orange flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-          >
-            {loading ? 'REGISTERING...' : 'CREATE ACCOUNT & ONBOARD'}
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
+            <div>
+              <label className="text-slate-400 block mb-1">PASSWORD</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-brand-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-lg shadow-hacker-orange flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {loading ? 'REGISTERING...' : 'CREATE ACCOUNT & ONBOARD'}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+        )}
 
         <div className="pt-4 border-t border-slate-800 text-center text-slate-400">
           Already registered?{' '}

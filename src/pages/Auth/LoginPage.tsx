@@ -1,31 +1,31 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Terminal, Lock, KeyRound, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Terminal, Lock, Mail, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export const LoginPage: React.FC = () => {
-  const [employeeCode, setEmployeeCode] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const { loginWithEmployeeCode } = useAuthStore();
+  const { loginWithEmail } = useAuthStore();
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
 
-    const res = loginWithEmployeeCode(employeeCode, password);
+    const res = await loginWithEmail(email, password);
+    setLoading(false);
 
     if (res.success) {
-      setLoading(false);
-      navigate('/pos');
+      navigate(res.hasProject ? '/pos' : '/onboarding');
     } else {
-      setLoading(false);
       setErrorMsg(res.error || 'Authentication failed.');
     }
   };
@@ -38,18 +38,28 @@ export const LoginPage: React.FC = () => {
           <Terminal className="w-8 h-8" />
         </div>
         <h1 className="text-2xl font-bold text-white tracking-tight">MODULAR RETAIL ERP</h1>
-        <p className="text-slate-400 mt-1">Employee & Superadmin Gateway Entrypoint</p>
+        <p className="text-slate-400 mt-1">Secure Store Sign-In</p>
       </div>
 
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4 text-slate-200">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h2 className="text-sm font-bold text-white uppercase flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-brand-500" /> STORE EMPLOYEE LOGIN
+            <ShieldCheck className="w-4 h-4 text-brand-500" /> STORE LOGIN
           </h2>
           <span className="text-[10px] text-slate-500 font-bold bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-            SECURE SESSION
+            SUPABASE AUTH
           </span>
         </div>
+
+        {!isSupabaseConfigured() && (
+          <div className="p-3 bg-amber-950/80 border border-amber-800 text-amber-300 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="leading-tight">
+              Backend not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file,
+              then restart the dev server.
+            </span>
+          </div>
+        )}
 
         {errorMsg && (
           <div className="p-3 bg-red-950/80 border border-red-800 text-red-300 rounded-lg flex items-start gap-2">
@@ -60,16 +70,17 @@ export const LoginPage: React.FC = () => {
 
         <form onSubmit={handleLoginSubmit} className="space-y-4">
           <div>
-            <label className="text-slate-400 block mb-1">EMPLOYEE CODE / SUPERADMIN ID</label>
+            <label className="text-slate-400 block mb-1">EMAIL</label>
             <div className="relative">
-              <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
-                type="text"
+                type="email"
                 required
-                value={employeeCode}
-                onChange={(e) => setEmployeeCode(e.target.value)}
-                placeholder="e.g. EMP-101 or superadmin"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2.5 text-white focus:border-brand-500 outline-none font-bold uppercase tracking-wider placeholder:normal-case placeholder:font-normal"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@yourstore.com"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2.5 text-white focus:border-brand-500 outline-none"
               />
             </div>
           </div>
@@ -81,6 +92,7 @@ export const LoginPage: React.FC = () => {
               <input
                 type="password"
                 required
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
@@ -94,19 +106,16 @@ export const LoginPage: React.FC = () => {
             disabled={loading}
             className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-lg shadow-hacker-orange flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-all"
           >
-            {loading ? 'VERIFYING CREDENTIALS...' : 'AUTHENTICATE & ENTER POS'}
+            {loading ? 'VERIFYING CREDENTIALS...' : 'SIGN IN & ENTER POS'}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        {/* Demo Credentials Helper Box */}
-        <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-lg space-y-1 text-[10px] text-slate-400">
-          <div className="font-bold text-slate-300 border-b border-slate-800 pb-1 mb-1 uppercase">
-            DEMO CREDENTIALS:
-          </div>
-          <div>🔑 <span className="font-bold text-brand-400">Superadmin:</span> superadmin / admin123</div>
-          <div>👤 <span className="font-bold text-brand-400">Cashier:</span> EMP-101 / 1234</div>
-          <div>👔 <span className="font-bold text-brand-400">Manager:</span> EMP-102 / 1234</div>
+        <div className="pt-4 border-t border-slate-800 text-center text-slate-400">
+          New store?{' '}
+          <Link to="/signup" className="text-brand-500 font-bold hover:underline">
+            Create an account
+          </Link>
         </div>
       </div>
     </div>

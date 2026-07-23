@@ -53,23 +53,25 @@ export async function syncOfflineQueue(): Promise<{ syncedCount: number; failedC
   const syncedIds: string[] = [];
   let failedCount = 0;
 
+  if (!isSupabaseConfigured()) {
+    // Without a configured backend there is nowhere to sync to — keep the
+    // queue intact rather than silently dropping recorded sales.
+    console.error('Cannot sync: Supabase is not configured. Queue preserved.');
+    return { syncedCount: 0, failedCount: queue.length };
+  }
+
   for (const sale of queue) {
-    if (isSupabaseConfigured()) {
-      try {
-        const { error } = await supabase.rpc('complete_sale', sale.payload);
-        if (!error) {
-          syncedIds.push(sale.id);
-        } else {
-          console.error('Supabase RPC offline sync error:', error.message);
-          failedCount++;
-        }
-      } catch (err) {
-        console.error('Failed to sync offline transaction:', sale.id, err);
+    try {
+      const { error } = await supabase.rpc('complete_sale', sale.payload);
+      if (!error) {
+        syncedIds.push(sale.id);
+      } else {
+        console.error('Supabase RPC offline sync error:', error.message);
         failedCount++;
       }
-    } else {
-      // Local fallback sync simulation for offline demo mode
-      syncedIds.push(sale.id);
+    } catch (err) {
+      console.error('Failed to sync offline transaction:', sale.id, err);
+      failedCount++;
     }
   }
 

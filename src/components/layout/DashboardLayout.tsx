@@ -25,19 +25,13 @@ import {
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC = () => {
-  const { user, activeProject, setActiveProject, logout } = useAuthStore();
+  const { user, activeProject, projects, selectProject, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineCount, setOfflineCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [showStoreDropdown, setShowStoreDropdown] = useState(false);
-
-  const STORES = [
-    { id: 'proj-101', name: 'Downtown Main Branch', slug: 'downtown-main', role: 'Owner' },
-    { id: 'proj-102', name: 'Warehouse Central #2', slug: 'warehouse-central', role: 'Manager' },
-    { id: 'proj-103', name: 'Express Retail Outlet #3', slug: 'express-outlet', role: 'Manager' },
-  ];
 
   useEffect(() => {
     const handleOnline = () => {
@@ -64,8 +58,8 @@ export const DashboardLayout: React.FC = () => {
     setSyncing(false);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -134,37 +128,45 @@ export const DashboardLayout: React.FC = () => {
               onClick={() => setShowStoreDropdown(!showStoreDropdown)}
               className="w-full flex items-center justify-between text-white font-bold bg-slate-800/80 p-2 rounded border border-slate-700 hover:border-brand-500 cursor-pointer transition-all"
             >
-              <span className="truncate">{activeProject?.name || 'Downtown Main Branch'}</span>
+              <span className="truncate">{activeProject?.name || 'No store yet'}</span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             </button>
 
-            {/* Dropdown Menu for Store Branches */}
+            {/* Dropdown Menu for Store Branches (real memberships from Supabase) */}
             {showStoreDropdown && (
               <div className="absolute left-3 right-3 top-16 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 p-2 space-y-1">
-                <div className="text-[9px] text-slate-500 font-bold px-2 py-1 uppercase">SWITCH STORE BRANCH</div>
-                {STORES.map((s) => (
+                <div className="text-[9px] text-slate-500 font-bold px-2 py-1 uppercase">SWITCH STORE / PROJECT</div>
+                {projects.length === 0 && (
+                  <div className="p-2 text-slate-500 text-[10px]">
+                    No stores found for your account.
+                  </div>
+                )}
+                {projects.map((s) => (
                   <button
                     key={s.id}
                     onClick={() => {
-                      setActiveProject({
-                        id: s.id,
-                        name: s.name,
-                        slug: s.slug,
-                        currency_code: 'USD',
-                        role: s.role,
-                      });
+                      selectProject(s.id);
                       setShowStoreDropdown(false);
                     }}
                     className={`w-full text-left p-2 rounded text-xs font-bold transition-all flex items-center justify-between ${
-                      activeProject?.name === s.name
+                      activeProject?.id === s.id
                         ? 'bg-brand-500 text-white'
                         : 'text-slate-300 hover:bg-slate-800'
                     }`}
                   >
                     <span className="truncate">{s.name}</span>
-                    <span className="text-[9px] opacity-75">{s.role}</span>
+                    <span className="text-[9px] opacity-75 uppercase">{s.role}</span>
                   </button>
                 ))}
+                <button
+                  onClick={() => {
+                    setShowStoreDropdown(false);
+                    navigate('/onboarding');
+                  }}
+                  className="w-full text-left p-2 rounded text-xs font-bold text-brand-400 hover:bg-slate-800 flex items-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Create new store
+                </button>
               </div>
             )}
           </div>

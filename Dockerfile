@@ -2,6 +2,15 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Vite bakes VITE_* variables into the bundle at BUILD time — they must be
+# provided as build args (in Coolify: mark the env vars as "Build Variable").
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_APP_URL
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+    VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
+    VITE_APP_URL=$VITE_APP_URL
+
 COPY package*.json ./
 RUN npm install --no-audit
 

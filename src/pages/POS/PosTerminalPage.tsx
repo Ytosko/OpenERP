@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { usePosStore, PosProduct } from '@/store/usePosStore';
+import { usePosStore } from '@/store/usePosStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useProducts } from '@/hooks/useProducts';
 import { useLoyaltyStore } from '@/store/useLoyaltyStore';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { executeSaleRPC } from '@/lib/db-client';
@@ -27,22 +28,9 @@ import {
   FolderOpen,
   Cloud,
   CloudOff,
+  AlertCircle,
+  PackageOpen,
 } from 'lucide-react';
-
-const MOCK_PRODUCTS: PosProduct[] = [
-  { id: 'p1', sku: 'COF-101', barcode: '8901001', name: 'Double Espresso 12oz', sales_price: 3.75, cost_price: 0.60, unit: 'cup', track_stock: false, stock_quantity: 999 },
-  { id: 'p2', sku: 'COF-102', barcode: '8901002', name: 'Oat Milk Latte 16oz', sales_price: 5.50, cost_price: 1.20, unit: 'cup', track_stock: false, stock_quantity: 999 },
-  { id: 'p3', sku: 'BAK-201', barcode: '8902001', name: 'Fresh Butter Croissant', sales_price: 4.25, cost_price: 1.10, unit: 'item', track_stock: true, stock_quantity: 24 },
-  { id: 'p4', sku: 'BAK-202', barcode: '8902002', name: 'Chocolate Almond Muffin', sales_price: 4.50, cost_price: 1.25, unit: 'item', track_stock: true, stock_quantity: 3 },
-  { id: 'p5', sku: 'BEV-301', barcode: '8903001', name: 'Cold Brew Coffee 16oz', sales_price: 4.95, cost_price: 0.90, unit: 'cup', track_stock: false, stock_quantity: 999 },
-  { id: 'p6', sku: 'MER-401', barcode: '8904001', name: 'Ethiopia Whole Bean 250g', sales_price: 18.50, cost_price: 8.00, unit: 'bag', track_stock: true, stock_quantity: 8 },
-  { id: 'p7', sku: 'ELE-501', barcode: '8905001', name: 'Wireless Thermal Label Printer', sales_price: 149.99, cost_price: 85.00, unit: 'unit', track_stock: true, stock_quantity: 12 },
-  { id: 'p8', sku: 'ELE-502', barcode: '8905002', name: 'Handheld 2D Laser Barcode Scanner', sales_price: 69.50, cost_price: 32.00, unit: 'unit', track_stock: true, stock_quantity: 18 },
-  { id: 'p9', sku: 'SUP-601', barcode: '8906001', name: '80mm Thermal Receipt Paper (Box of 50)', sales_price: 45.00, cost_price: 22.00, unit: 'box', track_stock: true, stock_quantity: 40 },
-  { id: 'p10', sku: 'SUP-602', barcode: '8906002', name: '4x6 Shipping Label Rolls (Roll of 500)', sales_price: 28.75, cost_price: 12.50, unit: 'roll', track_stock: true, stock_quantity: 65 },
-  { id: 'p11', sku: 'BEV-302', barcode: '8903002', name: 'Organic Matcha Green Tea Latte', sales_price: 5.75, cost_price: 1.40, unit: 'cup', track_stock: false, stock_quantity: 999 },
-  { id: 'p12', sku: 'BAK-203', barcode: '8902003', name: 'Artisan Blueberry Scone', sales_price: 3.95, cost_price: 0.95, unit: 'item', track_stock: true, stock_quantity: 15 },
-];
 
 export const PosTerminalPage: React.FC = () => {
   const { activeProject, user } = useAuthStore();
@@ -69,15 +57,18 @@ export const PosTerminalPage: React.FC = () => {
   const { templates, schema: activePrintTemplate } = usePrintDesignerStore();
 
   const [loading, setLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [completedSale, setCompletedSale] = useState<any | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(activePrintTemplate.id);
+
+  const { data: products = [], isLoading: productsLoading, error: productsError } = useProducts();
 
   // Exact Cents Integer Math Calculation
   const { subtotal, grandTotal } = calculateCartTotals(cart, discountTotal, 0);
   const changeDue = Math.max(0, fromCents(toCents(cashPaid) - toCents(grandTotal)));
 
-  const filteredProducts = MOCK_PRODUCTS.filter((p) =>
+  const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.barcode?.includes(searchQuery)
@@ -92,12 +83,19 @@ export const PosTerminalPage: React.FC = () => {
 
   const handleCheckoutSubmit = async () => {
     if (cart.length === 0) return;
+
+    if (!activeProject?.id || !activeProject.default_store_id) {
+      setCheckoutError('No active store selected. Finish onboarding or pick a store from the sidebar.');
+      return;
+    }
+
     setLoading(true);
+    setCheckoutError(null);
 
     try {
       const payload = {
-        p_project_id: activeProject?.id || '00000000-0000-0000-0000-000000000001',
-        p_store_id: '00000000-0000-0000-0000-000000000001',
+        p_project_id: activeProject.id,
+        p_store_id: activeProject.default_store_id,
         p_items: cart.map((item) => ({
           product_id: item.product.id,
           quantity: item.quantity,
@@ -141,8 +139,9 @@ export const PosTerminalPage: React.FC = () => {
       });
 
       setCheckoutOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setCheckoutError(err?.message || 'Sale failed. Nothing was recorded.');
     } finally {
       setLoading(false);
     }
@@ -179,6 +178,23 @@ export const PosTerminalPage: React.FC = () => {
 
         {/* Product Touch Grid */}
         <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 pr-1">
+          {productsLoading && (
+            <div className="col-span-full py-12 text-center text-slate-400">
+              LOADING PRODUCT CATALOG...
+            </div>
+          )}
+          {productsError && (
+            <div className="col-span-full p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{(productsError as Error).message}</span>
+            </div>
+          )}
+          {!productsLoading && !productsError && filteredProducts.length === 0 && (
+            <div className="col-span-full py-12 text-center text-slate-400 flex flex-col items-center gap-2">
+              <PackageOpen className="w-8 h-8 text-slate-300" />
+              <span>No products in this store yet. Add products from the Products & Inventory page.</span>
+            </div>
+          )}
           {filteredProducts.map((product) => (
             <button
               key={product.id}
@@ -347,6 +363,13 @@ export const PosTerminalPage: React.FC = () => {
               <span>COMPLETE PAYMENT</span>
               <span className="text-brand-600">${grandTotal.toFixed(2)}</span>
             </h3>
+
+            {checkoutError && (
+              <div className="p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg flex items-start gap-2 font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-tight">{checkoutError}</span>
+              </div>
+            )}
 
             {/* Payment Method Options */}
             <div>

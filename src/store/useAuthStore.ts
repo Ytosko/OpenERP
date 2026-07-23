@@ -1,16 +1,13 @@
 import { create } from 'zustand';
+import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export interface User {
   id: string;
-  employee_code: string;
+  employee_code?: string;
   email?: string;
   full_name: string;
-  role: 'superadmin' | 'owner' | 'admin' | 'manager' | 'cashier' | 'inventory_manager' | 'accountant';
-}
-
-export interface Session {
-  token: string;
-  expiresAt: number;
+  role: 'owner' | 'admin' | 'manager' | 'cashier' | 'inventory_manager' | 'accountant' | 'viewer';
 }
 
 export interface ProjectInfo {
@@ -20,153 +17,212 @@ export interface ProjectInfo {
   logo_url?: string;
   currency_code: string;
   role: string;
+  default_store_id?: string;
 }
+
+const ACTIVE_PROJECT_KEY = 'modular_pos_active_project_id';
 
 interface AuthState {
   user: User | null;
   session: Session | null;
   activeProject: ProjectInfo | null;
+  projects: ProjectInfo[];
   isAuthenticated: boolean;
-  loginWithEmployeeCode: (codeOrEmail: string, pass: string) => { success: boolean; error?: string };
+  /** false until the initial session restore has completed */
+  authReady: boolean;
+
+  initAuth: () => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string; hasProject?: boolean }>;
+  signUpWithEmail: (
+    fullName: string,
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string; needsEmailConfirm?: boolean }>;
+  refreshProjects: () => Promise<ProjectInfo[]>;
   setActiveProject: (project: ProjectInfo | null) => void;
-  logout: () => void;
+  selectProject: (projectId: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
-const STORAGE_USER_KEY = 'modular_pos_auth_user';
-const STORAGE_SESSION_KEY = 'modular_pos_auth_session';
+function mapSupabaseUser(su: SupabaseUser, role: User['role'] = 'viewer'): User {
+  return {
+    id: su.id,
+    email: su.email || undefined,
+    full_name: (su.user_metadata?.full_name as string) || su.email || 'User',
+    role,
+  };
+}
 
-const loadSavedUser = (): User | null => {
-  try {
-    const raw = localStorage.getItem(STORAGE_USER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
+async function fetchDefaultStoreId(projectId: string): Promise<string | undefined> {
+  const { data, error } = await supabase
+    .from('stores')
+    .select('id, is_default')
+    .eq('project_id', projectId)
+    .order('is_default', { ascending: false })
+    .limit(1);
+  if (error) {
+    console.error('Failed to load default store:', error.message);
+    return undefined;
   }
-};
+  return data?.[0]?.id;
+}
 
-const loadSavedSession = (): Session | null => {
-  try {
-    const raw = localStorage.getItem(STORAGE_SESSION_KEY);
-    if (!raw) return null;
-    const sess: Session = JSON.parse(raw);
-    if (Date.now() > sess.expiresAt) {
-      localStorage.removeItem(STORAGE_SESSION_KEY);
-      localStorage.removeItem(STORAGE_USER_KEY);
-      return null;
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  session: null,
+  activeProject: null,
+  projects: [],
+  isAuthenticated: false,
+  authReady: false,
+
+  initAuth: async () => {
+    if (!isSupabaseConfigured()) {
+      set({ authReady: true });
+      return;
     }
-    return sess;
-  } catch {
-    return null;
-  }
-};
 
-const savedUser = loadSavedUser();
-const savedSession = loadSavedSession();
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) {
+      set({
+        session: data.session,
+        user: mapSupabaseUser(data.session.user),
+        isAuthenticated: true,
+      });
+      await get().refreshProjects();
+    }
+    set({ authReady: true });
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: savedUser,
-  session: savedSession,
-  isAuthenticated: !!(savedUser && savedSession),
-  activeProject: {
-    id: 'proj-101',
-    name: 'Hacker Mart General Store',
-    slug: 'hacker-mart',
-    currency_code: 'USD',
-    role: savedUser?.role || 'cashier',
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        set({ user: null, session: null, isAuthenticated: false, activeProject: null, projects: [] });
+      } else if (session.user) {
+        const current = get().user;
+        set({
+          session,
+          user: current && current.id === session.user.id ? current : mapSupabaseUser(session.user),
+          isAuthenticated: true,
+        });
+      }
+    });
   },
 
-  setActiveProject: (activeProject) => set({ activeProject }),
-
-  loginWithEmployeeCode: (codeOrEmail, pass) => {
-    const envSuperUser = import.meta.env.VITE_SUPERADMIN_USER || 'superadmin';
-    const envSuperPass = import.meta.env.VITE_SUPERADMIN_PASS || 'admin123';
-
-    // 1. Superadmin check from ENV
-    if (
-      codeOrEmail.trim().toLowerCase() === envSuperUser.toLowerCase() &&
-      pass === envSuperPass
-    ) {
-      const superUser: User = {
-        id: 'usr-superadmin',
-        employee_code: envSuperUser,
-        email: 'superadmin@pos.ytosko.dev',
-        full_name: 'Super Admin',
-        role: 'superadmin',
-      };
-      const session: Session = {
-        token: `sess-super-${Date.now()}`,
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 Hours
-      };
-
-      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(superUser));
-      localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(session));
-
-      set({
-        user: superUser,
-        session,
-        isAuthenticated: true,
-        activeProject: {
-          id: 'proj-101',
-          name: 'Hacker Mart General Store',
-          slug: 'hacker-mart',
-          currency_code: 'USD',
-          role: 'superadmin',
-        },
-      });
-
-      return { success: true };
+  loginWithEmail: async (email, password) => {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env and rebuild.' };
     }
 
-    // 2. Demo Cashier / Employee Code checks
-    const EMPLOYEES: Record<string, { pass: string; name: string; role: User['role'] }> = {
-      'EMP-101': { pass: '1234', name: 'Alex Cashier', role: 'cashier' },
-      'EMP-102': { pass: '1234', name: 'Morgan Manager', role: 'manager' },
-      'EMP-103': { pass: '1234', name: 'Taylor Accountant', role: 'accountant' },
-      'cashier@store.com': { pass: '1234', name: 'Alex Cashier', role: 'cashier' },
-    };
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
 
-    const found = EMPLOYEES[codeOrEmail.trim()] || EMPLOYEES[codeOrEmail.trim().toUpperCase()];
-
-    if (found && found.pass === pass) {
-      const empUser: User = {
-        id: `usr-${codeOrEmail}`,
-        employee_code: codeOrEmail.trim().toUpperCase(),
-        full_name: found.name,
-        role: found.role,
-      };
-      const session: Session = {
-        token: `sess-emp-${Date.now()}`,
-        expiresAt: Date.now() + 12 * 60 * 60 * 1000, // 12 Hours
-      };
-
-      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(empUser));
-      localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(session));
-
-      set({
-        user: empUser,
-        session,
-        isAuthenticated: true,
-        activeProject: {
-          id: 'proj-101',
-          name: 'Hacker Mart General Store',
-          slug: 'hacker-mart',
-          currency_code: 'USD',
-          role: found.role,
-        },
-      });
-
-      return { success: true };
+    if (error || !data.session) {
+      return { success: false, error: error?.message || 'Authentication failed.' };
     }
 
-    return {
-      success: false,
-      error: 'Invalid Employee Code / Superadmin ID or Password. Try superadmin / admin123 or EMP-101 / 1234.',
-    };
+    set({
+      session: data.session,
+      user: mapSupabaseUser(data.session.user),
+      isAuthenticated: true,
+    });
+
+    const projects = await get().refreshProjects();
+    return { success: true, hasProject: projects.length > 0 };
   },
 
-  logout: () => {
-    localStorage.removeItem(STORAGE_USER_KEY);
-    localStorage.removeItem(STORAGE_SESSION_KEY);
-    set({ user: null, session: null, isAuthenticated: false });
+  signUpWithEmail: async (fullName, email, password) => {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env and rebuild.' };
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { full_name: fullName.trim() } },
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // Depending on project settings, Supabase may require email confirmation
+    // before a session is issued.
+    if (!data.session) {
+      return { success: true, needsEmailConfirm: true };
+    }
+
+    set({
+      session: data.session,
+      user: mapSupabaseUser(data.session.user),
+      isAuthenticated: true,
+    });
+    return { success: true };
+  },
+
+  refreshProjects: async () => {
+    const { data, error } = await supabase
+      .from('project_members')
+      .select('role, projects(id, name, slug, logo_url, currency_code)')
+      .eq('status', 'active');
+
+    if (error) {
+      console.error('Failed to load projects:', error.message);
+      return [];
+    }
+
+    const projects: ProjectInfo[] = (data || [])
+      .filter((row: any) => row.projects)
+      .map((row: any) => ({
+        id: row.projects.id,
+        name: row.projects.name,
+        slug: row.projects.slug,
+        logo_url: row.projects.logo_url || undefined,
+        currency_code: row.projects.currency_code || 'USD',
+        role: row.role,
+      }));
+
+    set({ projects });
+
+    if (projects.length > 0) {
+      const storedId = localStorage.getItem(ACTIVE_PROJECT_KEY);
+      const target = projects.find((p) => p.id === storedId) || projects[0];
+      const default_store_id = await fetchDefaultStoreId(target.id);
+      const user = get().user;
+      set({
+        activeProject: { ...target, default_store_id },
+        user: user ? { ...user, role: target.role as User['role'] } : user,
+      });
+    } else {
+      set({ activeProject: null });
+    }
+
+    return projects;
+  },
+
+  setActiveProject: (project) => {
+    if (project) {
+      localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
+    } else {
+      localStorage.removeItem(ACTIVE_PROJECT_KEY);
+    }
+    set({ activeProject: project });
+  },
+
+  selectProject: async (projectId) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project) return;
+    localStorage.setItem(ACTIVE_PROJECT_KEY, projectId);
+    const default_store_id = await fetchDefaultStoreId(projectId);
+    const user = get().user;
+    set({
+      activeProject: { ...project, default_store_id },
+      user: user ? { ...user, role: project.role as User['role'] } : user,
+    });
+  },
+
+  logout: async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem(ACTIVE_PROJECT_KEY);
+    set({ user: null, session: null, isAuthenticated: false, activeProject: null, projects: [] });
   },
 }));

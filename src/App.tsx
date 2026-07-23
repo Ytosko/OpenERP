@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -22,9 +22,19 @@ import { SignupPage } from '@/pages/Auth/SignupPage';
 
 const queryClient = new QueryClient();
 
-// Protected Route Guard (No auto-login, redirects unauthenticated users to /login)
+// Protected Route Guard — waits for the initial Supabase session restore,
+// then redirects unauthenticated users to /login.
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, authReady } = useAuthStore();
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center font-mono text-xs text-slate-400">
+        RESTORING SESSION...
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -32,6 +42,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function App() {
+  const initAuth = useAuthStore((s) => s.initAuth);
+
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -39,7 +55,16 @@ export function App() {
           {/* Public Authentication Entrypoint */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route path="/onboarding" element={<GuidedSetupPage />} />
+
+          {/* Onboarding requires a signed-in user (it creates real DB rows) */}
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <GuidedSetupPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Protected Dashboard Application Shell */}
           <Route

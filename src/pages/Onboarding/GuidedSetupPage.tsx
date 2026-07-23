@@ -3,32 +3,67 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Terminal, Sparkles, Store, Printer, ArrowRight, Check } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Store, Printer, ArrowRight, Check, AlertCircle, PackagePlus } from 'lucide-react';
 
 export const GuidedSetupPage: React.FC = () => {
   const [step, setStep] = useState(1);
   const [storeName, setStoreName] = useState('');
   const [businessType, setBusinessType] = useState('retail');
   const [currency, setCurrency] = useState('USD');
-  const [prompt, setPrompt] = useState('');
+  const [loadDemoCatalog, setLoadDemoCatalog] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const { setActiveProject } = useAuthStore();
+  const { refreshProjects, selectProject } = useAuthStore();
 
-  const handleCompleteSetup = () => {
+  const handleCompleteSetup = async () => {
+    if (!storeName.trim()) {
+      setErrorMsg('Please enter a store name in step 1.');
+      setStep(1);
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setActiveProject({
-        id: `proj-${Date.now()}`,
-        name: storeName || 'Hacker Mart General Store',
-        slug: 'hacker-mart',
-        currency_code: currency,
-        role: 'owner',
+    setErrorMsg(null);
+
+    try {
+      const { data, error } = await supabase.rpc('create_project_with_defaults', {
+        p_name: storeName.trim(),
+        p_business_type: businessType,
+        p_currency: currency,
       });
-      setLoading(false);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const projectId = data?.project_id as string;
+      const storeId = data?.store_id as string;
+
+      if (loadDemoCatalog && projectId && storeId) {
+        const { error: seedError } = await supabase.rpc('seed_demo_catalog', {
+          p_project_id: projectId,
+          p_store_id: storeId,
+        });
+        if (seedError) {
+          // Project exists; catalog seed failing is recoverable — surface it,
+          // but do not abandon the newly created store.
+          console.error('Demo catalog seed failed:', seedError.message);
+        }
+      }
+
+      await refreshProjects();
+      if (projectId) {
+        await selectProject(projectId);
+      }
       navigate('/pos');
-    }, 800);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Store creation failed. Check that database migrations are applied.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,6 +92,13 @@ export const GuidedSetupPage: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {errorMsg && (
+          <div className="mb-4 p-3 bg-red-950/80 border border-red-800 text-red-300 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="leading-tight">{errorMsg}</span>
+          </div>
+        )}
 
         {/* Step 1: Business Details */}
         {step === 1 && (
@@ -128,7 +170,7 @@ export const GuidedSetupPage: React.FC = () => {
                 { name: '80mm Thermal Roll (3")', desc: 'Standard POS receipt printer' },
                 { name: '58mm Compact Roll (2")', desc: 'Mobile or small thermal receipt' },
                 { name: '4 × 6 Shipping Label', desc: 'Logistics and package labels' },
-              ].map((rec, idx) => (
+              ].map((rec) => (
                 <div
                   key={rec.name}
                   className="p-3 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between text-white"
@@ -159,30 +201,35 @@ export const GuidedSetupPage: React.FC = () => {
           </div>
         )}
 
-        {/* Step 3: AI Catalog Generation Prompt */}
+        {/* Step 3: Catalog & Launch */}
         {step === 3 && (
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-white uppercase flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-brand-500" /> AI CATALOG GENERATOR
+              <PackagePlus className="w-4 h-4 text-brand-500" /> STARTING CATALOG
             </h3>
 
-            <div>
-              <label className="text-slate-400 block mb-1">PROMPT AI TO CREATE INITIAL PRODUCTS</label>
-              <textarea
-                rows={3}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g. Create a specialty coffee shop with 20 items, low stock warnings, and oat milk options"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
+            <label className="flex items-start gap-3 p-3 bg-slate-950 border border-slate-800 rounded-lg cursor-pointer text-white">
+              <input
+                type="checkbox"
+                checked={loadDemoCatalog}
+                onChange={(e) => setLoadDemoCatalog(e.target.checked)}
+                className="mt-0.5 accent-orange-500"
               />
-            </div>
+              <span>
+                <span className="font-bold block">Load demo catalog (12 products)</span>
+                <span className="text-[10px] text-slate-400">
+                  Coffee, bakery, electronics & supplies with opening stock — the fastest way to try
+                  the POS. You can delete them anytime.
+                </span>
+              </span>
+            </label>
 
             <button
               onClick={handleCompleteSetup}
               disabled={loading}
               className="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-lg shadow-hacker-orange flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {loading ? 'BUILDING YOUR STORE...' : 'LAUNCH STORE & POS'}
+              {loading ? 'CREATING YOUR STORE IN SUPABASE...' : 'LAUNCH STORE & POS'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
