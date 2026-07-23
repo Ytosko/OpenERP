@@ -2,30 +2,50 @@
 
 import React, { useState } from 'react';
 import { PaymentGatewayConfig } from '@/types/erp';
-import { CreditCard, Banknote, QrCode, Key, Check, Plus, Settings, ShieldCheck } from 'lucide-react';
+import { CreditCard, Banknote, QrCode, Key, Settings, ShieldCheck, AlertCircle, Check } from 'lucide-react';
+import { useProjectRecord, useUpdateProject } from '@/hooks/useErpData';
 
-const INITIAL_GATEWAYS: PaymentGatewayConfig[] = [
-  { id: 'gw-1', name: 'Cash Register Payment', provider: 'cash', enabled: true, instructions: 'Accept physical currency, count change due.' },
-  { id: 'gw-2', name: 'Physical Card Terminal (POS)', provider: 'card_terminal', enabled: true, merchantId: 'TERM-8849', instructions: 'Tap or chip insert card on counter reader.' },
-  { id: 'gw-3', name: 'Stripe Online & Terminal API', provider: 'stripe', enabled: false, apiKey: 'pk_live_••••••••••••••••', merchantId: 'acct_192847129' },
-  { id: 'gw-4', name: 'Square Terminal Integration', provider: 'square', enabled: false, apiKey: 'sq0idp-••••••••••••••••' },
-  { id: 'gw-5', name: 'Mobile QR Pay (BKash / Nagad / UPI)', provider: 'qr_mobile', enabled: true, merchantId: '+1 (800) 555-0199', instructions: 'Scan merchant QR code on counter.' },
+// Default gateway roster for stores that have not configured anything yet.
+// Persisted per-project in projects.settings.payment_gateways on first save.
+const DEFAULT_GATEWAYS: PaymentGatewayConfig[] = [
+  { id: 'gw-cash', name: 'Cash Register Payment', provider: 'cash', enabled: true, instructions: 'Accept physical currency, count change due.' },
+  { id: 'gw-card', name: 'Physical Card Terminal (POS)', provider: 'card_terminal', enabled: true, instructions: 'Tap or chip insert card on counter reader.' },
+  { id: 'gw-stripe', name: 'Stripe Online & Terminal API', provider: 'stripe', enabled: false },
+  { id: 'gw-square', name: 'Square Terminal Integration', provider: 'square', enabled: false },
+  { id: 'gw-qr', name: 'Mobile QR Pay (BKash / Nagad / UPI)', provider: 'qr_mobile', enabled: true, instructions: 'Scan merchant QR code on counter.' },
 ];
 
 export const PaymentGatewaysPage: React.FC = () => {
-  const [gateways, setGateways] = useState<PaymentGatewayConfig[]>(INITIAL_GATEWAYS);
+  const { data: project, isLoading, error } = useProjectRecord();
+  const updateProject = useUpdateProject();
+
   const [selectedGw, setSelectedGw] = useState<PaymentGatewayConfig | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const gateways: PaymentGatewayConfig[] =
+    (project?.settings.payment_gateways as PaymentGatewayConfig[] | undefined) || DEFAULT_GATEWAYS;
+
+  const persistGateways = async (next: PaymentGatewayConfig[]) => {
+    if (!project) return;
+    setActionError(null);
+    try {
+      await updateProject.mutateAsync({
+        settings: { ...project.settings, payment_gateways: next },
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err: any) {
+      setActionError(err?.message);
+    }
+  };
 
   const toggleGateway = (id: string) => {
-    setGateways((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, enabled: !g.enabled } : g))
-    );
+    persistGateways(gateways.map((g) => (g.id === id ? { ...g, enabled: !g.enabled } : g)));
   };
 
   const updateGatewayKeys = (id: string, apiKey: string, merchantId: string, instructions: string) => {
-    setGateways((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, apiKey, merchantId, instructions } : g))
-    );
+    persistGateways(gateways.map((g) => (g.id === id ? { ...g, apiKey, merchantId, instructions } : g)));
     setSelectedGw(null);
   };
 
@@ -38,10 +58,28 @@ export const PaymentGatewaysPage: React.FC = () => {
             <CreditCard className="w-4 h-4 text-brand-500" /> PAYMENT PROCESSOR & GATEWAY CONFIGURATION
           </h2>
           <p className="text-slate-500 text-[11px] mt-0.5">
-            Configure payment gateways, card terminal APIs, mobile QR payment, and merchant keys
+            Configure payment gateways, card terminal APIs, mobile QR payment, and merchant keys — saved per store
           </p>
         </div>
+        {saved && (
+          <span className="bg-emerald-100 text-emerald-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1">
+            <Check className="w-4 h-4" /> SAVED
+          </span>
+        )}
       </div>
+
+      {isLoading && (
+        <div className="p-4 bg-white border border-slate-200 rounded-xl text-slate-400 text-center">
+          LOADING GATEWAY CONFIGURATION...
+        </div>
+      )}
+
+      {(error || actionError) && (
+        <div className="p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg flex items-start gap-2 font-bold">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{actionError || (error as Error)?.message}</span>
+        </div>
+      )}
 
       {/* Payment Processors Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -71,7 +109,8 @@ export const PaymentGatewaysPage: React.FC = () => {
               {/* Enable / Disable Toggle */}
               <button
                 onClick={() => toggleGateway(gw.id)}
-                className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+                disabled={updateProject.isPending}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all disabled:opacity-50 ${
                   gw.enabled
                     ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -84,8 +123,11 @@ export const PaymentGatewaysPage: React.FC = () => {
             {/* Config Details */}
             <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-1 text-[10px] text-slate-600">
               {gw.merchantId && <div><span className="font-bold text-slate-800">MERCHANT ID:</span> {gw.merchantId}</div>}
-              {gw.apiKey && <div><span className="font-bold text-slate-800">API KEY:</span> {gw.apiKey}</div>}
+              {gw.apiKey && <div><span className="font-bold text-slate-800">API KEY:</span> ••••••••{gw.apiKey.slice(-4)}</div>}
               {gw.instructions && <div><span className="font-bold text-slate-800">INSTRUCTIONS:</span> {gw.instructions}</div>}
+              {!gw.merchantId && !gw.apiKey && !gw.instructions && (
+                <div className="text-slate-400">Not configured yet.</div>
+              )}
             </div>
 
             <button
@@ -160,9 +202,10 @@ export const PaymentGatewaysPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer"
+                  disabled={updateProject.isPending}
+                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer disabled:opacity-50"
                 >
-                  SAVE GATEWAY
+                  {updateProject.isPending ? 'SAVING...' : 'SAVE GATEWAY'}
                 </button>
               </div>
             </form>

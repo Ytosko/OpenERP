@@ -23,33 +23,40 @@ Coolify has built-in one-click support for self-hosting the full Supabase stack 
    - `SUPABASE_ANON_KEY` / `VITE_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
 
----
-
-### Option B: Standalone PostgreSQL Container in Coolify
-
-If you only want PostgreSQL 16 (without full Supabase Auth UI):
-
-1. In Coolify, click **+ New Resource** -> **Database** -> **PostgreSQL**.
-2. Select **PostgreSQL 16-alpine**.
-3. Set your Database Name (e.g. `pos_erp_db`), User, and Password.
-4. Coolify will run PostgreSQL in a Docker container and expose connection URL `postgresql://postgres:password@postgres:5432/pos_erp_db`.
+> **Note:** The app requires the full Supabase stack (Auth + PostgREST), not a
+> bare PostgreSQL container — the migrations reference the `auth` schema
+> (`auth.users`, `auth.uid()`) and the frontend talks to Supabase Auth and the
+> REST API. Use Option A (or hosted supabase.com); a standalone Postgres
+> database is NOT sufficient on its own.
 
 ---
 
-## 2. Applying SQL Migrations to Coolify Supabase / PostgreSQL
+## 2. Applying SQL Migrations
 
-Once your Supabase/PostgreSQL service is running in Coolify:
+Once your Supabase service is running (Coolify one-click or supabase.com):
 
-1. Open **Supabase Studio** (or connect via `psql` / DBeaver using your database connection string).
-2. Go to **SQL Editor**.
-3. Run the 3 migration scripts from `supabase/migrations/`:
+1. Open **Supabase Studio** -> **SQL Editor** (or use `supabase db push` with the CLI).
+2. Run the 4 migration scripts from `supabase/migrations/` **in order**:
    - `202607230001_initial_schema.sql`
    - `202607230002_rls_policies.sql`
    - `202607230003_complete_sale_function.sql`
+   - `202607230004_bootstrap_functions.sql`
+
+## 3. (Optional) AI Features — Edge Function
+
+The Gemini API key is a **server-side secret**, never a frontend variable:
+
+```bash
+supabase functions deploy ai-gateway
+supabase secrets set GEMINI_API_KEY=your-gemini-key
+```
+
+Without this, the app still works — AI forecasting/layout features fall back
+to local heuristics.
 
 ---
 
-## 3. Full 1-Click Topology in Coolify
+## 4. Full 1-Click Topology in Coolify
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
@@ -57,17 +64,29 @@ Once your Supabase/PostgreSQL service is running in Coolify:
 │                                                             │
 │  ┌────────────────────────┐     ┌────────────────────────┐  │
 │  │ POS Frontend App       │     │ Self-Hosted Supabase   │  │
-│  │ (Vite Static / Nginx)  │────►│ Stack / PostgreSQL     │  │
+│  │ (Vite Static / Apache) │────►│ Stack (Auth+REST+DB)   │  │
 │  │ pos.yourdomain.com     │     │ api.yourdomain.com     │  │
 │  └────────────────────────┘     └────────────────────────┘  │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Environment Variables for your App in Coolify:
+## 5. Environment Variables for the App in Coolify
+
 ```env
 VITE_SUPABASE_URL=https://api.yourdomain.com
-VITE_SUPABASE_ANON_KEY=your_self_hosted_anon_key
-VITE_GEMINI_API_KEY=your_gemini_api_key
+VITE_SUPABASE_ANON_KEY=your_anon_key
 VITE_APP_URL=https://pos.yourdomain.com
 ```
+
+> **IMPORTANT — mark these as Build Variables.** Vite compiles `VITE_*` values
+> into the static JS bundle during `npm run build` inside the Docker build.
+> In Coolify's Environment Variables UI, enable the **"Build Variable"**
+> toggle for each of the three variables above so they are passed to the
+> Docker build stage. Runtime-only environment variables have NO effect on an
+> already-built static bundle. After changing any of them, trigger a
+> **rebuild/redeploy** (not just a restart).
+
+The anon key is safe to expose in the bundle — access control is enforced by
+Row Level Security policies in the database, not by hiding the key. Never put
+the `SUPABASE_SERVICE_ROLE_KEY` or a Gemini key in any `VITE_*` variable.

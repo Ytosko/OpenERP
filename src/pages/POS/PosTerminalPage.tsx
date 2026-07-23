@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { usePosStore } from '@/store/usePosStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProducts } from '@/hooks/useProducts';
+import { useProjectRecord } from '@/hooks/useErpData';
 import { useLoyaltyStore } from '@/store/useLoyaltyStore';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { executeSaleRPC } from '@/lib/db-client';
@@ -63,6 +64,7 @@ export const PosTerminalPage: React.FC = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(activePrintTemplate.id);
 
   const { data: products = [], isLoading: productsLoading, error: productsError } = useProducts();
+  const { data: projectRecord } = useProjectRecord();
 
   // Exact Cents Integer Math Calculation
   const { subtotal, grandTotal } = calculateCartTotals(cart, discountTotal, 0);
@@ -482,9 +484,12 @@ export const PosTerminalPage: React.FC = () => {
             <div className="w-full border-t border-slate-200 pt-3 flex justify-center max-h-[300px] overflow-y-auto">
               <PrintRenderer
                 schema={currentPrintTemplate}
+                flow
                 sampleData={{
-                  storeName: activeProject?.name || 'HACKER MART STORE',
-                  storeAddress: '100 Technology Way, San Francisco, CA',
+                  storeLogoUrl: projectRecord?.logo_url,
+                  storeName: projectRecord?.name || activeProject?.name || 'MY STORE',
+                  storeAddress: projectRecord?.settings.address || '',
+                  storePhone: projectRecord?.settings.phone,
                   invoiceNumber: completedSale.invoice_number,
                   dateTime: completedSale.date,
                   cashier: user?.full_name || 'Alex Cashier',

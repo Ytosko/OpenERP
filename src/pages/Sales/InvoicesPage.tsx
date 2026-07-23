@@ -150,6 +150,7 @@ export const InvoicesPage: React.FC = () => {
             <div className="w-full border-t border-slate-200 pt-3 flex justify-center max-h-[320px] overflow-y-auto">
               <PrintRenderer
                 schema={currentPrintTemplate}
+                flow
                 sampleData={{
                   storeName: activeProject?.name || 'HACKER MART STORE',
                   storeAddress: '100 Technology Way, San Francisco, CA',

@@ -1,52 +1,71 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Supplier, PurchaseOrder } from '@/types/erp';
-import { Truck, Plus, PackageCheck, FileText, Building2, Mail, Phone } from 'lucide-react';
-
-const INITIAL_SUPPLIERS: Supplier[] = [
-  { id: 'sup-1', supplier_code: 'SUP-001', name: 'Global Coffee Importers Ltd', contact_person: 'David Beans', email: 'david@globalcoffee.com', phone: '+1 555-019-2834', address: '450 Roaster Way, Seattle WA' },
-  { id: 'sup-2', supplier_code: 'SUP-002', name: 'Fresh Artisan Bakery Wholesale', contact_person: 'Marie Flour', email: 'marie@artisanbakery.com', phone: '+1 555-019-8821', address: '12 Bakers Lane, San Francisco CA' },
-  { id: 'sup-3', supplier_code: 'SUP-003', name: 'Apex Medical Supplies Inc', contact_person: 'Dr. Robert Health', email: 'robert@apexmed.com', phone: '+1 555-019-3341', address: '900 Pharma Blvd, Boston MA' },
-];
-
-const INITIAL_POS: PurchaseOrder[] = [
-  { id: 'po-101', po_number: 'PO-202607-001', supplier_id: 'sup-1', supplier_name: 'Global Coffee Importers Ltd', status: 'received', items_count: 50, total_cost: 400.00, created_at: '2026-07-20' },
-  { id: 'po-102', po_number: 'PO-202607-002', supplier_id: 'sup-2', supplier_name: 'Fresh Artisan Bakery Wholesale', status: 'ordered', items_count: 20, total_cost: 150.00, created_at: '2026-07-22' },
-];
+import { Truck, Plus, PackageCheck, AlertCircle, FilePlus2, Trash2 } from 'lucide-react';
+import {
+  useSuppliers,
+  useAddSupplier,
+  usePurchaseOrders,
+  useCreatePurchaseOrder,
+  useReceivePurchaseOrder,
+  PoLineInput,
+} from '@/hooks/useErpData';
+import { useProducts } from '@/hooks/useProducts';
 
 export const SuppliersPage: React.FC = () => {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(INITIAL_SUPPLIERS);
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(INITIAL_POS);
+  const { data: suppliers = [], isLoading: suppliersLoading, error: suppliersError } = useSuppliers();
+  const { data: purchaseOrders = [], isLoading: posLoading, error: posError } = usePurchaseOrders();
+  const { data: products = [] } = useProducts();
+  const addSupplier = useAddSupplier();
+  const createPo = useCreatePurchaseOrder();
+  const receivePo = useReceivePurchaseOrder();
+
   const [activeTab, setActiveTab] = useState<'suppliers' | 'orders'>('suppliers');
   const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [showPoModal, setShowPoModal] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const [newSupplier, setNewSupplier] = useState({
-    name: '',
-    contact_person: '',
-    email: '',
-    phone: '',
-  });
+  const [newSupplier, setNewSupplier] = useState({ name: '', contact_person: '', email: '', phone: '' });
+  const [poSupplierId, setPoSupplierId] = useState('');
+  const [poLines, setPoLines] = useState<PoLineInput[]>([{ product_id: '', name: '', quantity: 1, unit_cost: 0 }]);
 
-  const handleAddSupplier = (e: React.FormEvent) => {
+  const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
-    const created: Supplier = {
-      id: `sup-${Date.now()}`,
-      supplier_code: `SUP-${Date.now().toString().slice(-3)}`,
-      name: newSupplier.name,
-      contact_person: newSupplier.contact_person,
-      email: newSupplier.email,
-      phone: newSupplier.phone,
-    };
-    setSuppliers([...suppliers, created]);
-    setShowSupplierModal(false);
-    setNewSupplier({ name: '', contact_person: '', email: '', phone: '' });
+    setActionError(null);
+    try {
+      await addSupplier.mutateAsync(newSupplier);
+      setShowSupplierModal(false);
+      setNewSupplier({ name: '', contact_person: '', email: '', phone: '' });
+    } catch (err: any) {
+      setActionError(err?.message);
+    }
   };
 
-  const receiveOrder = (poId: string) => {
-    setPurchaseOrders(
-      purchaseOrders.map((po) => (po.id === poId ? { ...po, status: 'received' } : po))
-    );
+  const handleCreatePo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionError(null);
+    try {
+      await createPo.mutateAsync({ supplier_id: poSupplierId, lines: poLines });
+      setShowPoModal(false);
+      setPoSupplierId('');
+      setPoLines([{ product_id: '', name: '', quantity: 1, unit_cost: 0 }]);
+      setActiveTab('orders');
+    } catch (err: any) {
+      setActionError(err?.message);
+    }
+  };
+
+  const handleReceive = async (poId: string) => {
+    setActionError(null);
+    try {
+      await receivePo.mutateAsync(poId);
+    } catch (err: any) {
+      setActionError(err?.message);
+    }
+  };
+
+  const updateLine = (idx: number, patch: Partial<PoLineInput>) => {
+    setPoLines((lines) => lines.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
   };
 
   return (
@@ -82,35 +101,68 @@ export const SuppliersPage: React.FC = () => {
             </button>
           </div>
 
-          {activeTab === 'suppliers' && (
+          {activeTab === 'suppliers' ? (
             <button
               onClick={() => setShowSupplierModal(true)}
               className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-4 py-2 rounded-lg shadow-hacker-orange flex items-center gap-1 cursor-pointer"
             >
               <Plus className="w-4 h-4" /> ADD SUPPLIER
             </button>
+          ) : (
+            <button
+              onClick={() => setShowPoModal(true)}
+              className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-4 py-2 rounded-lg shadow-hacker-orange flex items-center gap-1 cursor-pointer"
+            >
+              <FilePlus2 className="w-4 h-4" /> NEW PURCHASE ORDER
+            </button>
           )}
         </div>
       </div>
 
+      {actionError && (
+        <div className="p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg flex items-start gap-2 font-bold">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{actionError}</span>
+        </div>
+      )}
+
+      {(suppliersError || posError) && (
+        <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{((suppliersError || posError) as Error).message}</span>
+        </div>
+      )}
+
       {/* Suppliers Tab */}
       {activeTab === 'suppliers' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {suppliers.map((s) => (
-            <div key={s.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <span className="font-bold text-slate-900 text-xs">{s.name}</span>
-                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px]">{s.supplier_code}</span>
-              </div>
-
-              <div className="space-y-1 text-slate-600">
-                {s.contact_person && <div>Contact: <span className="font-semibold text-slate-800">{s.contact_person}</span></div>}
-                {s.email && <div>Email: {s.email}</div>}
-                {s.phone && <div>Tel: {s.phone}</div>}
-              </div>
+        <>
+          {suppliersLoading && (
+            <div className="p-4 bg-white border border-slate-200 rounded-xl text-slate-400 text-center">
+              LOADING SUPPLIERS...
             </div>
-          ))}
-        </div>
+          )}
+          {!suppliersLoading && suppliers.length === 0 && !suppliersError && (
+            <div className="p-8 bg-white border border-slate-200 rounded-xl text-slate-400 text-center">
+              No suppliers yet. Add your first vendor to start issuing purchase orders.
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {suppliers.map((s) => (
+              <div key={s.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="font-bold text-slate-900 text-xs">{s.name}</span>
+                  <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px]">{s.supplier_code}</span>
+                </div>
+
+                <div className="space-y-1 text-slate-600">
+                  {s.contact_person && <div>Contact: <span className="font-semibold text-slate-800">{s.contact_person}</span></div>}
+                  {s.email && <div>Email: {s.email}</div>}
+                  {s.phone && <div>Tel: {s.phone}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Purchase Orders Tab */}
@@ -122,6 +174,7 @@ export const SuppliersPage: React.FC = () => {
                 <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
                   <th className="p-3">PO #</th>
                   <th className="p-3">SUPPLIER</th>
+                  <th className="p-3">DATE</th>
                   <th className="p-3 text-center">ITEMS QTY</th>
                   <th className="p-3 text-right">TOTAL COST</th>
                   <th className="p-3 text-center">STATUS</th>
@@ -129,10 +182,17 @@ export const SuppliersPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
+                {posLoading && (
+                  <tr><td colSpan={7} className="p-6 text-center text-slate-400">LOADING PURCHASE ORDERS...</td></tr>
+                )}
+                {!posLoading && purchaseOrders.length === 0 && (
+                  <tr><td colSpan={7} className="p-6 text-center text-slate-400">No purchase orders yet.</td></tr>
+                )}
                 {purchaseOrders.map((po) => (
                   <tr key={po.id} className="hover:bg-slate-50/80 transition-all">
                     <td className="p-3 font-bold text-slate-900">{po.po_number}</td>
                     <td className="p-3 font-semibold">{po.supplier_name}</td>
+                    <td className="p-3 text-slate-500">{po.created_at}</td>
                     <td className="p-3 text-center">{po.items_count}</td>
                     <td className="p-3 text-right font-bold">${po.total_cost.toFixed(2)}</td>
                     <td className="p-3 text-center">
@@ -147,10 +207,11 @@ export const SuppliersPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="p-3 text-center">
-                      {po.status !== 'received' && (
+                      {po.status === 'ordered' && (
                         <button
-                          onClick={() => receiveOrder(po.id)}
-                          className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded flex items-center gap-1 mx-auto cursor-pointer"
+                          onClick={() => handleReceive(po.id)}
+                          disabled={receivePo.isPending}
+                          className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded flex items-center gap-1 mx-auto cursor-pointer disabled:opacity-50"
                         >
                           <PackageCheck className="w-3.5 h-3.5" /> RECEIVE STOCK
                         </button>
@@ -223,9 +284,117 @@ export const SuppliersPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer"
+                  disabled={addSupplier.isPending}
+                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer disabled:opacity-50"
                 >
-                  SAVE SUPPLIER
+                  {addSupplier.isPending ? 'SAVING...' : 'SAVE SUPPLIER'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Purchase Order Modal */}
+      {showPoModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full shadow-2xl space-y-4 font-mono text-xs max-h-[90vh] overflow-y-auto">
+            <h3 className="text-sm font-bold text-slate-900 border-b pb-2">NEW PURCHASE ORDER</h3>
+            <form onSubmit={handleCreatePo} className="space-y-3">
+              <div>
+                <label className="text-slate-500 block mb-1">SUPPLIER</label>
+                <select
+                  required
+                  value={poSupplierId}
+                  onChange={(e) => setPoSupplierId(e.target.value)}
+                  className="w-full p-2 border border-slate-300 rounded outline-none focus:border-brand-500"
+                >
+                  <option value="">Select supplier...</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-slate-500 block">ORDER LINES</label>
+                {poLines.map((line, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_64px_80px_28px] gap-2 items-center">
+                    <select
+                      value={line.product_id}
+                      onChange={(e) => {
+                        const p = products.find((pr) => pr.id === e.target.value);
+                        updateLine(idx, {
+                          product_id: e.target.value,
+                          name: p?.name || '',
+                          unit_cost: p?.cost_price ?? line.unit_cost,
+                        });
+                      }}
+                      className="p-2 border border-slate-300 rounded outline-none focus:border-brand-500"
+                    >
+                      <option value="">Product...</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min={1}
+                      value={line.quantity}
+                      onChange={(e) => updateLine(idx, { quantity: parseInt(e.target.value) || 0 })}
+                      className="p-2 border border-slate-300 rounded text-center"
+                      title="Quantity"
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={line.unit_cost}
+                      onChange={(e) => updateLine(idx, { unit_cost: parseFloat(e.target.value) || 0 })}
+                      className="p-2 border border-slate-300 rounded text-right"
+                      title="Unit cost ($)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPoLines((lines) => lines.filter((_, i) => i !== idx))}
+                      disabled={poLines.length === 1}
+                      className="text-slate-400 hover:text-red-600 disabled:opacity-30 cursor-pointer"
+                      title="Remove line"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPoLines((lines) => [...lines, { product_id: '', name: '', quantity: 1, unit_cost: 0 }])}
+                  className="text-brand-600 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add line
+                </button>
+              </div>
+
+              <div className="flex justify-between font-bold border-t pt-2">
+                <span>ESTIMATED TOTAL</span>
+                <span>
+                  ${poLines.reduce((s, l) => s + (l.quantity || 0) * (l.unit_cost || 0), 0).toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPoModal(false)}
+                  className="flex-1 py-2 border border-slate-300 rounded text-slate-700 cursor-pointer"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  disabled={createPo.isPending}
+                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer disabled:opacity-50"
+                >
+                  {createPo.isPending ? 'CREATING...' : 'ISSUE PURCHASE ORDER'}
                 </button>
               </div>
             </form>
