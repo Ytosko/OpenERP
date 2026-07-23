@@ -8,17 +8,17 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "80:80"
+    expose:
+      - "80"
     environment:
       - VITE_APP_URL=${SERVICE_URL_APP:-https://pos.ytosko.dev}
       - VITE_SUPERADMIN_USER=${SUPERADMIN_USER:-superadmin}
       - VITE_SUPERADMIN_PASS=${SUPERADMIN_PASS:-admin123}
       - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
+      - db
+      - redis
     networks:
       - pos-network
 
@@ -35,11 +35,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d # AUTOMATICALLY EXECUTES ALL MIGRATIONS ON STARTUP
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
     networks:
       - pos-network
 
