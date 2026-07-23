@@ -9,8 +9,11 @@ import { Move, Trash2 } from 'lucide-react';
 export interface PrintRendererProps {
   schema: TemplateSchema;
   sampleData?: {
+    storeLogoUrl?: string;
     storeName?: string;
     storeAddress?: string;
+    storePhone?: string;
+    taxId?: string;
     invoiceNumber?: string;
     dateTime?: string;
     cashier?: string;
@@ -28,8 +31,11 @@ export interface PrintRendererProps {
 export const PrintRenderer: React.FC<PrintRendererProps> = ({
   schema,
   sampleData = {
-    storeName: 'HACKER MART STORE',
+    storeLogoUrl: '',
+    storeName: 'HACKER MART ENTERPRISE',
     storeAddress: '100 Technology Way, San Francisco, CA',
+    storePhone: '+1 (555) 019-2834',
+    taxId: 'TAX-88912-US',
     invoiceNumber: 'INV-20260723-00109',
     dateTime: new Date().toLocaleString(),
     cashier: 'Alex Cashier',
@@ -108,6 +114,8 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
     };
   }, [draggingId, dragStart, isPrintOnly, page.width, page.height, updateElement]);
 
+  const logoSrc = elContentOrData(sampleData?.storeLogoUrl);
+
   return (
     <div
       ref={canvasRef}
@@ -146,23 +154,50 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
           const renderContent = () => {
             switch (el.type) {
               case 'logo':
+                const imageSrc = el.content || sampleData?.storeLogoUrl;
                 return (
                   <div className="w-full h-full flex items-center justify-center">
-                    {el.content ? (
-                      <img src={el.content} alt="Store Logo" className="max-w-full max-h-full object-contain pointer-events-none" />
+                    {imageSrc ? (
+                      <img src={imageSrc} alt="Store Logo" className="max-w-full max-h-full object-contain pointer-events-none" />
                     ) : (
                       <div className="w-full h-full bg-slate-900 text-white rounded flex items-center justify-center text-[10px] font-bold">
-                        [LOGO]
+                        [STORE LOGO]
                       </div>
                     )}
                   </div>
                 );
 
               case 'store_name':
-                return <div className="w-full truncate font-bold">{el.content || sampleData.storeName}</div>;
+                return <div className="w-full truncate font-bold">{sampleData?.storeName || el.content || 'HACKER MART STORE'}</div>;
 
               case 'store_address':
-                return <div className="w-full text-[10px] leading-tight text-slate-700">{el.content || sampleData.storeAddress}</div>;
+                return (
+                  <div className="w-full text-[10px] leading-tight text-slate-700">
+                    <div>{sampleData?.storeAddress || el.content || '100 Technology Way, San Francisco, CA'}</div>
+                    {sampleData?.storePhone && <div className="text-[9px] text-slate-500">Ph: {sampleData.storePhone}</div>}
+                  </div>
+                );
+
+              case 'customer_info':
+                return (
+                  <div className="w-full text-[10px] text-slate-800">
+                    <span className="font-bold">CUSTOMER:</span> {sampleData?.customerName || 'Walk-in Customer'}
+                  </div>
+                );
+
+              case 'cashier_name':
+                return (
+                  <div className="w-full text-[10px] text-slate-800">
+                    <span className="font-bold">CASHIER:</span> {sampleData?.cashier || 'Alex Cashier'}
+                  </div>
+                );
+
+              case 'date_time':
+                return (
+                  <div className="w-full text-[10px] text-slate-800">
+                    <span className="font-bold">DATE:</span> {sampleData?.dateTime || new Date().toLocaleString()}
+                  </div>
+                );
 
               case 'line':
                 return (
@@ -290,3 +325,7 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
     </div>
   );
 };
+
+function elContentOrData(val?: string): string {
+  return val || '';
+}

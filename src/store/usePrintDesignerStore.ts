@@ -12,6 +12,55 @@ import {
   PageMode,
 } from '@/types/print-designer';
 
+const LOCAL_STORAGE_TEMPLATES_KEY = 'modular_pos_print_templates_v2';
+const LOCAL_STORAGE_ACTIVE_SCHEMA_KEY = 'modular_pos_active_schema_v2';
+
+function loadInitialTemplates(): TemplateSchema[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_TEMPLATES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load saved templates from localStorage:', err);
+  }
+  return [
+    STARTER_RONGTA_RP400,
+    STARTER_4X6_LABEL,
+    STARTER_80MM_RECEIPT,
+    STARTER_58MM_RECEIPT,
+    STARTER_60X40_LABEL,
+    STARTER_50X30_LABEL,
+  ];
+}
+
+function loadInitialSchema(templates: TemplateSchema[]): TemplateSchema {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_ACTIVE_SCHEMA_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.id) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load active schema from localStorage:', err);
+  }
+  return templates[0] || STARTER_RONGTA_RP400;
+}
+
+function saveToLocalStorage(templates: TemplateSchema[], activeSchema: TemplateSchema) {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_TEMPLATES_KEY, JSON.stringify(templates));
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_SCHEMA_KEY, JSON.stringify(activeSchema));
+  } catch (err) {
+    console.warn('Failed to save templates to localStorage:', err);
+  }
+}
+
 interface PrintDesignerState {
   mode: 'easy' | 'advanced';
   templates: TemplateSchema[];
@@ -52,20 +101,16 @@ interface PrintDesignerState {
   saveTemplate: () => void;
 }
 
+const initialTemplates = loadInitialTemplates();
+const initialSchema = loadInitialSchema(initialTemplates);
+
 export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
   mode: 'easy',
-  templates: [
-    STARTER_RONGTA_RP400,
-    STARTER_4X6_LABEL,
-    STARTER_80MM_RECEIPT,
-    STARTER_58MM_RECEIPT,
-    STARTER_60X40_LABEL,
-    STARTER_50X30_LABEL,
-  ],
-  schema: STARTER_RONGTA_RP400,
+  templates: initialTemplates,
+  schema: initialSchema,
   selectedElementId: null,
   zoom: 100,
-  history: [STARTER_RONGTA_RP400],
+  history: [initialSchema],
   historyIndex: 0,
   saving: false,
   lastSavedAt: null,
@@ -82,6 +127,7 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
         historyIndex: 0,
         selectedElementId: null,
       });
+      saveToLocalStorage(templates, found);
     }
   },
 
@@ -113,12 +159,14 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
       page: pageConfig,
     };
 
+    const newTemplates = [...templates, newSchema];
     set({
-      templates: [...templates, newSchema],
+      templates: newTemplates,
       schema: newSchema,
       history: [newSchema],
       historyIndex: 0,
     });
+    saveToLocalStorage(newTemplates, newSchema);
   },
 
   duplicateTemplate: () => {
@@ -128,22 +176,26 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
       id: `tmpl-${Date.now()}`,
       name: `${schema.name} (Copy)`,
     };
+    const newTemplates = [...templates, dup];
     set({
-      templates: [...templates, dup],
+      templates: newTemplates,
       schema: dup,
       history: [dup],
       historyIndex: 0,
     });
+    saveToLocalStorage(newTemplates, dup);
   },
 
   deleteTemplate: (id) => {
     const { templates, schema } = get();
     if (templates.length <= 1) return;
     const remaining = templates.filter((t) => t.id !== id);
+    const active = schema.id === id ? remaining[0] : schema;
     set({
       templates: remaining,
-      schema: schema.id === id ? remaining[0] : schema,
+      schema: active,
     });
+    saveToLocalStorage(remaining, active);
   },
 
   uploadLogoImage: (dataUrl) => {
@@ -161,15 +213,20 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
   },
 
   setSchema: (schema) => {
-    const { history, historyIndex } = get();
+    const { history, historyIndex, templates } = get();
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(schema);
 
+    // Update in templates list as well
+    const updatedTemplates = templates.map((t) => (t.id === schema.id ? schema : t));
+
     set({
       schema,
+      templates: updatedTemplates,
       history: newHistory,
       historyIndex: newHistory.length - 1,
     });
+    saveToLocalStorage(updatedTemplates, schema);
   },
 
   setSelectedElementId: (selectedElementId) => set({ selectedElementId }),
@@ -262,27 +319,40 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
   undo: () => {
     const { history, historyIndex } = get();
     if (historyIndex > 0) {
+      const prev = history[historyIndex - 1];
       set({
         historyIndex: historyIndex - 1,
-        schema: history[historyIndex - 1],
+        schema: prev,
       });
+      saveToLocalStorage(get().templates, prev);
     }
   },
 
   redo: () => {
     const { history, historyIndex } = get();
     if (historyIndex < history.length - 1) {
+      const next = history[historyIndex + 1];
       set({
         historyIndex: historyIndex + 1,
-        schema: history[historyIndex + 1],
+        schema: next,
       });
+      saveToLocalStorage(get().templates, next);
     }
   },
 
   saveTemplate: () => {
-    set({ saving: true });
+    const { schema, templates } = get();
+    const updatedTemplates = templates.map((t) => (t.id === schema.id ? schema : t));
+    
+    set({
+      saving: true,
+      templates: updatedTemplates,
+    });
+    
+    saveToLocalStorage(updatedTemplates, schema);
+
     setTimeout(() => {
       set({ saving: false, lastSavedAt: new Date().toLocaleTimeString() });
-    }, 600);
+    }, 400);
   },
 }));
