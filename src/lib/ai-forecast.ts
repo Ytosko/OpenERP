@@ -15,7 +15,8 @@ export async function runAIForecasting(products: any[]): Promise<ForecastResult[
   if (apiKey && apiKey.trim() !== '') {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      // Using Gemini Flash Lite model for ultra-fast response
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-lite' });
       const prompt = `Analyze these inventory products and predict which items need reordering:\n${JSON.stringify(
         products
       )}\nReturn ONLY a raw JSON array of forecast alerts with fields: productName, daysRemaining, recommendedOrderQty, urgency ('high'|'medium'|'low'), summary. Do not include markdown codeblocks.`;
@@ -51,7 +52,8 @@ export async function runAILayoutOptimizer(schema: TemplateSchema): Promise<Temp
   if (apiKey && apiKey.trim() !== '') {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      // Using Gemini Flash Lite model for thermal layout optimization
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-lite' });
       const prompt = `You are an expert thermal label layout designer. Optimize this JSON layout template for paper savings (reduce margins, align elements, optimize font size for ${schema.page.width}${schema.page.unit} roll width):\n${JSON.stringify(
         schema
       )}\nReturn ONLY the modified valid TemplateSchema JSON object. Do not include markdown codeblocks or explanations.`;

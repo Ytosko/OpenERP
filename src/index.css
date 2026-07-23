@@ -8,25 +8,51 @@
   }
 }
 
-/* Thermal Printer CSS Engine for Direct Browser Print */
+/* High-Precision Thermal Printer CSS Engine for Direct Browser Print */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  
-  #printable-thermal-canvas,
-  #printable-thermal-canvas * {
-    visibility: visible;
-  }
-  
-  #printable-thermal-canvas {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+
+  /* Hide all dashboard UI, sidebars, headers, floating widgets, and navigation */
+  header, nav, aside, footer, button, .print-hide {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #printable-thermal-canvas,
+  #printable-thermal-canvas * {
+    visibility: visible !important;
+  }
+
+  #printable-thermal-canvas {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 !important;
     border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Hide selection handles, badges, outline rings during physical printing */
+  .selection-badge,
+  .outline,
+  .ring-4,
+  .ring-2 {
+    display: none !important;
+    outline: none !important;
     box-shadow: none !important;
   }
 

@@ -263,7 +263,7 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
                 <div
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute -top-7 left-0 bg-brand-500 text-white text-[9px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1.5 shadow-lg pointer-events-auto z-50"
+                  className="absolute -top-7 left-0 bg-brand-500 text-white text-[9px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1.5 shadow-lg pointer-events-auto z-50 selection-badge print-hide"
                 >
                   <Move className="w-3 h-3" />
                   <span>X:{el.x} Y:{el.y} W:{el.width} H:{el.height}</span>
