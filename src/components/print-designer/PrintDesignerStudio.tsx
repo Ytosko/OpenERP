@@ -6,6 +6,7 @@ import { EasyModeEditor } from './EasyModeEditor';
 import { AdvancedModeEditor } from './AdvancedModeEditor';
 import { PrintRenderer } from './PrintRenderer';
 import { optimizeThermalPaperSaver } from '@/lib/ai-forecast';
+import { PageMode, PageUnit } from '@/types/print-designer';
 import {
   Undo,
   Redo,
@@ -15,12 +16,12 @@ import {
   Sparkles,
   Sliders,
   Layers,
-  Plus,
   Copy,
   Upload,
   Trash2,
   FilePlus,
   FolderOpen,
+  Maximize2,
 } from 'lucide-react';
 
 export const PrintDesignerStudio: React.FC = () => {
@@ -35,6 +36,7 @@ export const PrintDesignerStudio: React.FC = () => {
     duplicateTemplate,
     deleteTemplate,
     uploadLogoImage,
+    setPageSize,
     undo,
     redo,
     historyIndex,
@@ -44,7 +46,13 @@ export const PrintDesignerStudio: React.FC = () => {
   const [zoomLevel, setZoomLevel] = useState(100);
   const [showNewModal, setShowNewModal] = useState(false);
   const [newTmplName, setNewTmplName] = useState('');
-  const [newTmplType, setNewTmplType] = useState<'80mm' | '58mm' | '4x6'>('80mm');
+  const [newTmplType, setNewTmplType] = useState<string>('rongta_rp400');
+  
+  // Custom Roll/Label State for Modal
+  const [customWidth, setCustomWidth] = useState<number>(104);
+  const [customHeight, setCustomHeight] = useState<number>(160);
+  const [customUnit, setCustomUnit] = useState<PageUnit>('mm');
+  const [customMode, setCustomMode] = useState<PageMode>('continuous');
 
   const handleApplyAiPaperSaver = () => {
     const optimized = optimizeThermalPaperSaver(schema);
@@ -67,7 +75,16 @@ export const PrintDesignerStudio: React.FC = () => {
 
   const handleCreateNewSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createNewTemplate(newTmplName, newTmplType);
+    if (newTmplType === 'custom') {
+      createNewTemplate(newTmplName || 'Custom Label Template', 'custom', {
+        width: customWidth,
+        height: customHeight,
+        unit: customUnit,
+        mode: customMode,
+      });
+    } else {
+      createNewTemplate(newTmplName, newTmplType);
+    }
     setShowNewModal(false);
     setNewTmplName('');
   };
@@ -209,6 +226,90 @@ export const PrintDesignerStudio: React.FC = () => {
         </div>
       </header>
 
+      {/* Quick Live Page Dimensions Control Bar */}
+      <div className="bg-slate-800 text-slate-200 px-4 py-2 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2">
+          <Maximize2 className="w-4 h-4 text-brand-400" />
+          <span className="font-bold text-white uppercase text-[11px]">CANVAS SIZE & ROLL RESIZER:</span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-slate-400">WIDTH:</span>
+            <input
+              type="number"
+              value={schema.page.width}
+              onChange={(e) =>
+                setPageSize(
+                  parseFloat(e.target.value) || 10,
+                  schema.page.height,
+                  schema.page.unit,
+                  schema.page.mode
+                )
+              }
+              className="w-16 p-1 bg-slate-900 border border-slate-700 rounded text-center font-bold text-white"
+            />
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-slate-400">HEIGHT:</span>
+            <input
+              type="number"
+              value={schema.page.height}
+              onChange={(e) =>
+                setPageSize(
+                  schema.page.width,
+                  parseFloat(e.target.value) || 10,
+                  schema.page.unit,
+                  schema.page.mode
+                )
+              }
+              className="w-16 p-1 bg-slate-900 border border-slate-700 rounded text-center font-bold text-white"
+            />
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-slate-400">UNIT:</span>
+            <select
+              value={schema.page.unit}
+              onChange={(e) =>
+                setPageSize(
+                  schema.page.width,
+                  schema.page.height,
+                  e.target.value as PageUnit,
+                  schema.page.mode
+                )
+              }
+              className="p-1 bg-slate-900 border border-slate-700 rounded font-bold text-white"
+            >
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="inch">inch</option>
+              <option value="px">px</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-slate-400">MODE:</span>
+            <select
+              value={schema.page.mode}
+              onChange={(e) =>
+                setPageSize(
+                  schema.page.width,
+                  schema.page.height,
+                  schema.page.unit,
+                  e.target.value as PageMode
+                )
+              }
+              className="p-1 bg-slate-900 border border-slate-700 rounded font-bold text-white"
+            >
+              <option value="continuous">Roll / Continuous</option>
+              <option value="fixed">Fixed Label / Sheet</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Main Workspace (Editor Panel Left, Live Preview Right) */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Controls Editor Panel */}
@@ -216,7 +317,7 @@ export const PrintDesignerStudio: React.FC = () => {
           {mode === 'easy' ? <EasyModeEditor /> : <AdvancedModeEditor />}
         </div>
 
-        {/* Right Live Canvas Canvas Workstation */}
+        {/* Right Live Canvas Workstation */}
         <div className="flex-1 bg-slate-200/80 p-6 overflow-auto flex items-center justify-center">
           <div
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'center center' }}
@@ -227,49 +328,109 @@ export const PrintDesignerStudio: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal: Create New Print Template */}
+      {/* Modal: Create New Print Template with Custom Sizes & Printer Options */}
       {showNewModal && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4 font-mono text-xs text-slate-900">
-            <h3 className="text-sm font-bold border-b pb-2">CREATE NEW PRINT TEMPLATE</h3>
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full shadow-2xl space-y-4 font-mono text-xs text-slate-900">
+            <h3 className="text-sm font-bold border-b pb-2 text-brand-600">CREATE NEW PRINT TEMPLATE</h3>
 
-            <form onSubmit={handleCreateNewSubmit} className="space-y-3">
+            <form onSubmit={handleCreateNewSubmit} className="space-y-4">
               <div>
-                <label className="text-slate-500 block mb-1">TEMPLATE NAME</label>
+                <label className="text-slate-500 block mb-1 font-bold">TEMPLATE NAME</label>
                 <input
                   type="text"
                   required
                   value={newTmplName}
                   onChange={(e) => setNewTmplName(e.target.value)}
-                  placeholder="e.g. Kitchen Thermal Order Ticket"
-                  className="w-full p-2 border border-slate-300 rounded outline-none focus:border-brand-500"
+                  placeholder="e.g. Rongta RP400 Shipping Label"
+                  className="w-full p-2.5 border border-slate-300 rounded font-bold outline-none focus:border-brand-500"
                 />
               </div>
 
               <div>
-                <label className="text-slate-500 block mb-1">LAYOUT PRESET TYPE</label>
+                <label className="text-slate-500 block mb-1 font-bold">LAYOUT / PRINTER PRESET</label>
                 <select
                   value={newTmplType}
-                  onChange={(e) => setNewTmplType(e.target.value as any)}
-                  className="w-full p-2 border border-slate-300 rounded outline-none focus:border-brand-500"
+                  onChange={(e) => setNewTmplType(e.target.value)}
+                  className="w-full p-2.5 border border-slate-300 rounded font-bold outline-none focus:border-brand-500"
                 >
-                  <option value="80mm">80mm Continuous Thermal Receipt</option>
-                  <option value="58mm">58mm Mini Thermal Receipt</option>
-                  <option value="4x6">4x6 Shipping & Warehouse Label</option>
+                  <option value="rongta_rp400">🖨️ Rongta RP400 (104mm / 4" Industrial Roll)</option>
+                  <option value="rongta_rp500">🖨️ Rongta RP500 (80mm / 104mm Heavy-Duty Thermal)</option>
+                  <option value="4x6">📦 102mm x 152mm (4x6 Inch Shipping Label)</option>
+                  <option value="80mm">🧾 80mm Continuous Thermal Receipt</option>
+                  <option value="58mm">🧾 58mm Mini Thermal Receipt</option>
+                  <option value="60x40">🏷️ 60mm x 40mm Product Barcode Tag</option>
+                  <option value="50x30">🏷️ 50mm x 30mm Retail Price Tag</option>
+                  <option value="custom">⚙️ CUSTOM DIMENSIONS & ROLL SIZE</option>
                 </select>
               </div>
+
+              {/* Custom Size Config Input Fields */}
+              {newTmplType === 'custom' && (
+                <div className="p-3 bg-brand-50 border border-brand-200 rounded-lg space-y-3">
+                  <div className="font-bold text-brand-800">CUSTOM PAGE / ROLL SPECIFICATIONS</div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-slate-500 block">WIDTH</label>
+                      <input
+                        type="number"
+                        value={customWidth}
+                        onChange={(e) => setCustomWidth(parseFloat(e.target.value) || 10)}
+                        className="w-full p-2 border border-slate-300 rounded bg-white font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 block">HEIGHT</label>
+                      <input
+                        type="number"
+                        value={customHeight}
+                        onChange={(e) => setCustomHeight(parseFloat(e.target.value) || 10)}
+                        className="w-full p-2 border border-slate-300 rounded bg-white font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-slate-500 block">MEASUREMENT UNIT</label>
+                      <select
+                        value={customUnit}
+                        onChange={(e) => setCustomUnit(e.target.value as PageUnit)}
+                        className="w-full p-2 border border-slate-300 rounded bg-white font-bold"
+                      >
+                        <option value="mm">mm</option>
+                        <option value="cm">cm</option>
+                        <option value="inch">inch</option>
+                        <option value="px">px</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 block">ROLL / SHEET MODE</label>
+                      <select
+                        value={customMode}
+                        onChange={(e) => setCustomMode(e.target.value as PageMode)}
+                        className="w-full p-2 border border-slate-300 rounded bg-white font-bold"
+                      >
+                        <option value="continuous">Roll / Continuous</option>
+                        <option value="fixed">Fixed Sheet / Tag</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}
-                  className="flex-1 py-2 border border-slate-300 rounded text-slate-700 cursor-pointer"
+                  className="flex-1 py-2.5 border border-slate-300 rounded text-slate-700 cursor-pointer font-bold"
                 >
                   CANCEL
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer"
+                  className="flex-1 py-2.5 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer"
                 >
                   CREATE TEMPLATE
                 </button>

@@ -278,6 +278,28 @@ export const STARTER_4X6_LABEL: TemplateSchema = {
   ],
 };
 
+export const STARTER_RONGTA_RP400: TemplateSchema = {
+  id: 'tmpl-rongta-rp400',
+  name: 'Rongta RP400 (104mm / 4" Industrial Thermal Roll)',
+  version: 1,
+  page: {
+    mode: 'continuous',
+    width: 104,
+    height: 160,
+    unit: 'mm',
+    orientation: 'portrait',
+    margins: { top: 4, right: 4, bottom: 4, left: 4 },
+    dpi: 203,
+  },
+  editor: { gridEnabled: true, gridSize: 2, snapEnabled: true },
+  elements: [
+    { id: 'e-rp400-name', type: 'store_name', label: 'Store Name', enabled: true, content: 'RONGTA HEAVY DUTY STORE', x: 4, y: 6, width: 96, height: 10, zIndex: 1, style: { fontSize: 18, fontWeight: 'bold', textAlign: 'center' } },
+    { id: 'e-rp400-barcode', type: 'barcode', label: 'Barcode', enabled: true, x: 12, y: 20, width: 80, height: 24, zIndex: 2, style: { textAlign: 'center' } },
+    { id: 'e-rp400-table', type: 'product_table', label: 'Product List', enabled: true, x: 4, y: 48, width: 96, height: 45, zIndex: 3, style: { fontSize: 11 } },
+    { id: 'e-rp400-total', type: 'grand_total', label: 'Grand Total', enabled: true, content: 'TOTAL: ${{invoice.grand_total}}', x: 4, y: 98, width: 96, height: 10, zIndex: 4, style: { fontSize: 16, fontWeight: 'bold', textAlign: 'right' } },
+  ],
+};
+
 export const STARTER_60X40_LABEL: TemplateSchema = {
   id: 'tmpl-60x40',
   name: '60mm x 40mm Product Barcode Tag',
@@ -329,6 +351,9 @@ export interface LabelDimensionPreset {
 }
 
 export const INDUSTRIAL_LABEL_PRESETS: LabelDimensionPreset[] = [
+  { name: 'Rongta RP400 (104mm / 4" Industrial Roll)', width: 104, height: 160, unit: 'mm', mode: 'continuous' },
+  { name: 'Rongta RP500 (104mm Industrial Roll)', width: 104, height: 160, unit: 'mm', mode: 'continuous' },
+  { name: 'Rongta RP500 (80mm Heavy-Duty Roll)', width: 80, height: 150, unit: 'mm', mode: 'continuous' },
   { name: '102mm x 152mm (4" x 6" Shipping Label)', width: 102, height: 152, unit: 'mm', mode: 'fixed' },
   { name: '101mm x 151mm (Shipping Label)', width: 101, height: 151, unit: 'mm', mode: 'fixed' },
   { name: '101mm x 50mm (Large Product Tag)', width: 101, height: 50, unit: 'mm', mode: 'fixed' },

@@ -5,6 +5,7 @@ import {
   STARTER_80MM_RECEIPT,
   STARTER_58MM_RECEIPT,
   STARTER_4X6_LABEL,
+  STARTER_RONGTA_RP400,
   STARTER_60X40_LABEL,
   STARTER_50X30_LABEL,
   PageUnit,
@@ -25,7 +26,11 @@ interface PrintDesignerState {
   setMode: (mode: 'easy' | 'advanced') => void;
   setSchema: (schema: TemplateSchema) => void;
   selectTemplate: (id: string) => void;
-  createNewTemplate: (name: string, type: string) => void;
+  createNewTemplate: (
+    name: string,
+    presetType: string,
+    customOpts?: { width: number; height: number; unit: PageUnit; mode: PageMode }
+  ) => void;
   duplicateTemplate: () => void;
   deleteTemplate: (id: string) => void;
   uploadLogoImage: (dataUrl: string) => void;
@@ -50,16 +55,17 @@ interface PrintDesignerState {
 export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
   mode: 'easy',
   templates: [
+    STARTER_RONGTA_RP400,
     STARTER_4X6_LABEL,
     STARTER_80MM_RECEIPT,
     STARTER_58MM_RECEIPT,
     STARTER_60X40_LABEL,
     STARTER_50X30_LABEL,
   ],
-  schema: STARTER_4X6_LABEL,
+  schema: STARTER_RONGTA_RP400,
   selectedElementId: null,
   zoom: 100,
-  history: [STARTER_4X6_LABEL],
+  history: [STARTER_RONGTA_RP400],
   historyIndex: 0,
   saving: false,
   lastSavedAt: null,
@@ -79,18 +85,32 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
     }
   },
 
-  createNewTemplate: (name, type) => {
+  createNewTemplate: (name, presetType, customOpts) => {
     const { templates } = get();
-    let base = STARTER_4X6_LABEL;
-    if (type === '80mm') base = STARTER_80MM_RECEIPT;
-    if (type === '58mm') base = STARTER_58MM_RECEIPT;
-    if (type === '60x40') base = STARTER_60X40_LABEL;
-    if (type === '50x30') base = STARTER_50X30_LABEL;
+    let base = STARTER_RONGTA_RP400;
+
+    if (presetType === '80mm') base = STARTER_80MM_RECEIPT;
+    if (presetType === '58mm') base = STARTER_58MM_RECEIPT;
+    if (presetType === '4x6') base = STARTER_4X6_LABEL;
+    if (presetType === '60x40') base = STARTER_60X40_LABEL;
+    if (presetType === '50x30') base = STARTER_50X30_LABEL;
+
+    let pageConfig = { ...base.page };
+    if (presetType === 'custom' && customOpts) {
+      pageConfig = {
+        ...pageConfig,
+        width: customOpts.width,
+        height: customOpts.height,
+        unit: customOpts.unit,
+        mode: customOpts.mode,
+      };
+    }
 
     const newSchema: TemplateSchema = {
       ...base,
       id: `tmpl-${Date.now()}`,
       name: name || `Custom Template ${templates.length + 1}`,
+      page: pageConfig,
     };
 
     set({
@@ -127,7 +147,7 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
   },
 
   uploadLogoImage: (dataUrl) => {
-    const { schema, setSchema } = get();
+    const { schema } = get();
     const logoEl = schema.elements.find((el) => el.type === 'logo' || el.id === 'e-logo');
     if (logoEl) {
       get().updateElement(logoEl.id, { content: dataUrl });

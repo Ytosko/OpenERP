@@ -78,7 +78,6 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
       if (!canvasRef.current || !dragStart) return;
       const rect = canvasRef.current.getBoundingClientRect();
 
-      // Dynamic visual scale calculation (pixels per document unit)
       const scaleX = rect.width / (page.width || 1);
       const scaleY = rect.height / (page.height || 150);
 
@@ -247,6 +246,10 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
               key={el.id}
               style={style}
               onMouseDown={(e) => handleMouseDown(e, el)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedElementId(el.id);
+              }}
               className={`transition-shadow ${
                 isSelected
                   ? 'outline outline-2 outline-brand-500 ring-4 ring-brand-500/30 bg-brand-50/20'
@@ -257,7 +260,11 @@ export const PrintRenderer: React.FC<PrintRendererProps> = ({
 
               {/* Active Selection Handle Bar */}
               {isSelected && (
-                <div className="absolute -top-7 left-0 bg-brand-500 text-white text-[9px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1.5 shadow-lg pointer-events-auto z-50">
+                <div
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute -top-7 left-0 bg-brand-500 text-white text-[9px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1.5 shadow-lg pointer-events-auto z-50"
+                >
                   <Move className="w-3 h-3" />
                   <span>X:{el.x} Y:{el.y} W:{el.width} H:{el.height}</span>
                   <button
