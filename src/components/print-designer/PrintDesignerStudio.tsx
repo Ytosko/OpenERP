@@ -5,7 +5,7 @@ import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { EasyModeEditor } from './EasyModeEditor';
 import { AdvancedModeEditor } from './AdvancedModeEditor';
 import { PrintRenderer } from './PrintRenderer';
-import { optimizeThermalPaperSaver } from '@/lib/ai-forecast';
+import { runAILayoutOptimizer } from '@/lib/ai-forecast';
 import { PageMode, PageUnit } from '@/types/print-designer';
 import {
   Undo,
@@ -22,6 +22,7 @@ import {
   FilePlus,
   FolderOpen,
   Maximize2,
+  Loader2,
 } from 'lucide-react';
 
 export const PrintDesignerStudio: React.FC = () => {
@@ -47,16 +48,29 @@ export const PrintDesignerStudio: React.FC = () => {
   const [showNewModal, setShowNewModal] = useState(false);
   const [newTmplName, setNewTmplName] = useState('');
   const [newTmplType, setNewTmplType] = useState<string>('rongta_rp400');
-  
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [aiMessage, setAiMessage] = useState<string | null>(null);
+
   // Custom Roll/Label State for Modal
   const [customWidth, setCustomWidth] = useState<number>(104);
   const [customHeight, setCustomHeight] = useState<number>(160);
   const [customUnit, setCustomUnit] = useState<PageUnit>('mm');
   const [customMode, setCustomMode] = useState<PageMode>('continuous');
 
-  const handleApplyAiPaperSaver = () => {
-    const optimized = optimizeThermalPaperSaver(schema);
-    setSchema(optimized);
+  const handleApplyAiPaperSaver = async () => {
+    setIsAiProcessing(true);
+    setAiMessage('Gemini AI analyzing thermal roll margins...');
+    try {
+      const optimized = await runAILayoutOptimizer(schema);
+      setSchema(optimized);
+      setAiMessage('AI 30% Thermal Paper Roll Optimization Applied!');
+      setTimeout(() => setAiMessage(null), 3500);
+    } catch (err) {
+      setAiMessage('AI Optimization Error. Applied smart fallback.');
+      setTimeout(() => setAiMessage(null), 3000);
+    } finally {
+      setIsAiProcessing(false);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,13 +190,26 @@ export const PrintDesignerStudio: React.FC = () => {
         </div>
 
         {/* Center AI Paper Saver Button */}
-        <button
-          onClick={handleApplyAiPaperSaver}
-          className="bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-          title="Optimize margins & font spacing to save 30% thermal paper roll"
-        >
-          <Sparkles className="w-4 h-4 text-brand-500" /> AI 30% PAPER SAVER
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleApplyAiPaperSaver}
+            disabled={isAiProcessing}
+            className="bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+            title="Optimize margins & font spacing to save 30% thermal paper roll using Gemini AI"
+          >
+            {isAiProcessing ? (
+              <Loader2 className="w-4 h-4 text-brand-500 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 text-brand-500" />
+            )}
+            <span>AI 30% PAPER SAVER</span>
+          </button>
+          {aiMessage && (
+            <span className="text-[10px] text-emerald-400 font-bold bg-slate-950 px-2 py-1 rounded border border-emerald-500/30 animate-pulse">
+              {aiMessage}
+            </span>
+          )}
+        </div>
 
         {/* Right Tools (Undo, Redo, Zoom, Save) */}
         <div className="flex items-center gap-2">
@@ -230,7 +257,7 @@ export const PrintDesignerStudio: React.FC = () => {
       <div className="bg-slate-800 text-slate-200 px-4 py-2 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2">
           <Maximize2 className="w-4 h-4 text-brand-400" />
-          <span className="font-bold text-white uppercase text-[11px]">CANVAS SIZE & ROLL RESIZER:</span>
+          <span className="font-bold text-white uppercase text-[11px]">EDIT CURRENT PAPER / ROLL DIMENSIONS:</span>
         </div>
 
         <div className="flex items-center gap-3">

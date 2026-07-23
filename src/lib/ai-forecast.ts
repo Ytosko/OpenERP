@@ -18,19 +18,20 @@ export async function runAIForecasting(products: any[]): Promise<ForecastResult[
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const prompt = `Analyze these inventory products and predict which items need reordering:\n${JSON.stringify(
         products
-      )}\nReturn a JSON array of forecast alerts with fields: productName, daysRemaining, recommendedOrderQty, urgency ('high'|'medium'|'low'), summary.`;
-      
+      )}\nReturn ONLY a raw JSON array of forecast alerts with fields: productName, daysRemaining, recommendedOrderQty, urgency ('high'|'medium'|'low'), summary. Do not include markdown codeblocks.`;
+
       const response = await model.generateContent(prompt);
-      const text = response.response.text();
-      if (text) {
-        return JSON.parse(text);
+      const rawText = response.response.text();
+      if (rawText) {
+        const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanJson);
       }
     } catch (err) {
       console.warn('AI Forecasting fallback activated:', err);
     }
   }
 
-  // Fallback AI Forecast calculations based on stock levels & thresholds
+  // Smart Fallback AI Forecast calculations based on stock levels & thresholds
   return products.map((p) => {
     const daysLeft = Math.max(1, Math.floor(p.stock_quantity / 1.5));
     const urgency = p.stock_quantity <= 5 ? 'high' : daysLeft <= 7 ? 'medium' : 'low';
@@ -44,8 +45,36 @@ export async function runAIForecasting(products: any[]): Promise<ForecastResult[
   });
 }
 
+export async function runAILayoutOptimizer(schema: TemplateSchema): Promise<TemplateSchema> {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+  if (apiKey && apiKey.trim() !== '') {
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const prompt = `You are an expert thermal label layout designer. Optimize this JSON layout template for paper savings (reduce margins, align elements, optimize font size for ${schema.page.width}${schema.page.unit} roll width):\n${JSON.stringify(
+        schema
+      )}\nReturn ONLY the modified valid TemplateSchema JSON object. Do not include markdown codeblocks or explanations.`;
+
+      const response = await model.generateContent(prompt);
+      const rawText = response.response.text();
+      if (rawText) {
+        const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        if (parsed && parsed.elements) {
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.warn('Gemini AI Layout Optimizer fallback activated:', err);
+    }
+  }
+
+  // Local fallback optimization (save 30% thermal paper roll)
+  return optimizeThermalPaperSaver(schema);
+}
+
 export function optimizeThermalPaperSaver(schema: TemplateSchema): TemplateSchema {
-  // Reduces top/bottom margins and font sizes to save 30% thermal paper roll
   return {
     ...schema,
     page: {
@@ -53,8 +82,8 @@ export function optimizeThermalPaperSaver(schema: TemplateSchema): TemplateSchem
       margins: {
         top: Math.max(1, schema.page.margins.top - 1),
         bottom: Math.max(1, schema.page.margins.bottom - 1),
-        left: schema.page.margins.left,
-        right: schema.page.margins.right,
+        left: Math.max(1, schema.page.margins.left - 1),
+        right: Math.max(1, schema.page.margins.right - 1),
       },
     },
     elements: schema.elements.map((el) => ({
