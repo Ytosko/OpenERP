@@ -15,14 +15,26 @@ import {
   Sparkles,
   Sliders,
   Layers,
+  Plus,
+  Copy,
+  Upload,
+  Trash2,
+  FilePlus,
+  FolderOpen,
 } from 'lucide-react';
 
 export const PrintDesignerStudio: React.FC = () => {
   const {
     mode,
     setMode,
+    templates,
     schema,
     setSchema,
+    selectTemplate,
+    createNewTemplate,
+    duplicateTemplate,
+    deleteTemplate,
+    uploadLogoImage,
     undo,
     redo,
     historyIndex,
@@ -30,47 +42,118 @@ export const PrintDesignerStudio: React.FC = () => {
   } = usePrintDesignerStore();
 
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newTmplName, setNewTmplName] = useState('');
+  const [newTmplType, setNewTmplType] = useState<'80mm' | '58mm' | '4x6'>('80mm');
 
   const handleApplyAiPaperSaver = () => {
     const optimized = optimizeThermalPaperSaver(schema);
     setSchema(optimized);
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) {
+          uploadLogoImage(dataUrl);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCreateNewSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createNewTemplate(newTmplName, newTmplType);
+    setShowNewModal(false);
+    setNewTmplName('');
+  };
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col font-mono text-xs bg-slate-100 overflow-hidden">
       {/* Top Designer Toolbar */}
-      <header className="bg-slate-900 text-white p-3 border-b border-slate-800 flex items-center justify-between gap-4 shrink-0 shadow-md">
-        {/* Left Studio Title & Mode Toggle */}
+      <header className="bg-slate-900 text-white p-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-md">
+        {/* Left Studio Title & Template Selector */}
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-brand-500 text-white flex items-center justify-center font-bold shadow-hacker-orange">
             <Printer className="w-4 h-4" />
           </div>
-          <div>
-            <h2 className="font-bold tracking-wide text-xs">UNIVERSAL PRINT DESIGNER STUDIO</h2>
-            <div className="text-[10px] text-slate-400">Canva-grade Thermal & Label Layout Engine</div>
+
+          {/* Template Selector Dropdown */}
+          <div className="flex items-center gap-2">
+            <FolderOpen className="w-4 h-4 text-slate-400" />
+            <select
+              value={schema.id}
+              onChange={(e) => selectTemplate(e.target.value)}
+              className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 font-bold text-white focus:border-brand-500 outline-none cursor-pointer text-xs"
+            >
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           </div>
 
+          {/* Template Action Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded font-bold flex items-center gap-1 cursor-pointer"
+              title="Create new custom print template"
+            >
+              <FilePlus className="w-3.5 h-3.5 text-brand-500" /> NEW
+            </button>
+
+            <button
+              onClick={duplicateTemplate}
+              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded font-bold flex items-center gap-1 cursor-pointer"
+              title="Duplicate current template"
+            >
+              <Copy className="w-3.5 h-3.5 text-blue-400" /> DUP
+            </button>
+
+            {templates.length > 1 && (
+              <button
+                onClick={() => deleteTemplate(schema.id)}
+                className="p-1.5 bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-400 rounded cursor-pointer"
+                title="Delete template"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Upload Logo File Input */}
+          <label className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded font-bold flex items-center gap-1 cursor-pointer">
+            <Upload className="w-3.5 h-3.5 text-emerald-400" /> LOGO
+            <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+          </label>
+
           {/* Mode Switcher Pills */}
-          <div className="ml-4 bg-slate-950 p-1 rounded-lg border border-slate-800 flex items-center gap-1">
+          <div className="bg-slate-950 p-1 rounded-lg border border-slate-800 flex items-center gap-1">
             <button
               onClick={() => setMode('easy')}
-              className={`px-3 py-1 rounded font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer flex items-center gap-1 ${
                 mode === 'easy'
                   ? 'bg-brand-500 text-white shadow-hacker-orange'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Sliders className="w-3.5 h-3.5" /> EASY MODE
+              <Sliders className="w-3.5 h-3.5" /> EASY
             </button>
             <button
               onClick={() => setMode('advanced')}
-              className={`px-3 py-1 rounded font-bold transition-all cursor-pointer flex items-center gap-1 ${
+              className={`px-2.5 py-1 rounded font-bold transition-all cursor-pointer flex items-center gap-1 ${
                 mode === 'advanced'
                   ? 'bg-brand-500 text-white shadow-hacker-orange'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" /> ADVANCED CANVA
+              <Layers className="w-3.5 h-3.5" /> CANVA
             </button>
           </div>
         </div>
@@ -143,6 +226,58 @@ export const PrintDesignerStudio: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal: Create New Print Template */}
+      {showNewModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4 font-mono text-xs text-slate-900">
+            <h3 className="text-sm font-bold border-b pb-2">CREATE NEW PRINT TEMPLATE</h3>
+
+            <form onSubmit={handleCreateNewSubmit} className="space-y-3">
+              <div>
+                <label className="text-slate-500 block mb-1">TEMPLATE NAME</label>
+                <input
+                  type="text"
+                  required
+                  value={newTmplName}
+                  onChange={(e) => setNewTmplName(e.target.value)}
+                  placeholder="e.g. Kitchen Thermal Order Ticket"
+                  className="w-full p-2 border border-slate-300 rounded outline-none focus:border-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-500 block mb-1">LAYOUT PRESET TYPE</label>
+                <select
+                  value={newTmplType}
+                  onChange={(e) => setNewTmplType(e.target.value as any)}
+                  className="w-full p-2 border border-slate-300 rounded outline-none focus:border-brand-500"
+                >
+                  <option value="80mm">80mm Continuous Thermal Receipt</option>
+                  <option value="58mm">58mm Mini Thermal Receipt</option>
+                  <option value="4x6">4x6 Shipping & Warehouse Label</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewModal(false)}
+                  className="flex-1 py-2 border border-slate-300 rounded text-slate-700 cursor-pointer"
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange cursor-pointer"
+                >
+                  CREATE TEMPLATE
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

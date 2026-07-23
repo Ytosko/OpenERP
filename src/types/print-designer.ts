@@ -64,6 +64,8 @@ export interface PrintElement {
 }
 
 export interface TemplateSchema {
+  id: string;
+  name: string;
   version: number;
   page: {
     mode: PageMode;
@@ -84,6 +86,8 @@ export interface TemplateSchema {
 }
 
 export const STARTER_80MM_RECEIPT: TemplateSchema = {
+  id: 'tmpl-80mm',
+  name: '80mm Thermal Receipt (Standard)',
   version: 1,
   page: {
     mode: 'continuous',
@@ -94,11 +98,7 @@ export const STARTER_80MM_RECEIPT: TemplateSchema = {
     margins: { top: 3, right: 3, bottom: 3, left: 3 },
     dpi: 203,
   },
-  editor: {
-    gridEnabled: true,
-    gridSize: 2,
-    snapEnabled: true,
-  },
+  editor: { gridEnabled: true, gridSize: 2, snapEnabled: true },
   elements: [
     {
       id: 'e-logo',
@@ -180,18 +180,6 @@ export const STARTER_80MM_RECEIPT: TemplateSchema = {
       style: { fontSize: 10, fontFamily: 'monospace' },
     },
     {
-      id: 'e-line2',
-      type: 'line',
-      label: 'Divider Line',
-      enabled: true,
-      x: 4,
-      y: 86,
-      width: 72,
-      height: 1,
-      zIndex: 7,
-      style: { borderWidth: 1, borderColor: '#000000', borderStyle: 'dashed' },
-    },
-    {
       id: 'e-grandtotal',
       type: 'grand_total',
       label: 'Grand Total',
@@ -244,5 +232,47 @@ export const STARTER_80MM_RECEIPT: TemplateSchema = {
       zIndex: 11,
       style: { fontSize: 9, textAlign: 'center', color: '#334155' },
     },
+  ],
+};
+
+export const STARTER_58MM_RECEIPT: TemplateSchema = {
+  id: 'tmpl-58mm',
+  name: '58mm Mini Thermal Receipt',
+  version: 1,
+  page: {
+    mode: 'continuous',
+    width: 58,
+    height: 120,
+    unit: 'mm',
+    orientation: 'portrait',
+    margins: { top: 2, right: 2, bottom: 2, left: 2 },
+    dpi: 203,
+  },
+  editor: { gridEnabled: true, gridSize: 2, snapEnabled: true },
+  elements: [
+    { id: 'e-58-name', type: 'store_name', label: 'Store Name', enabled: true, content: 'MINI MART', x: 2, y: 5, width: 54, height: 6, zIndex: 1, style: { fontSize: 12, fontWeight: 'bold', textAlign: 'center' } },
+    { id: 'e-58-table', type: 'product_table', label: 'Items Table', enabled: true, x: 2, y: 15, width: 54, height: 30, zIndex: 2, style: { fontSize: 8 } },
+    { id: 'e-58-total', type: 'grand_total', label: 'Grand Total', enabled: true, content: 'TOTAL: ${{invoice.grand_total}}', x: 2, y: 50, width: 54, height: 6, zIndex: 3, style: { fontSize: 12, fontWeight: 'bold', textAlign: 'right' } },
+  ],
+};
+
+export const STARTER_4X6_LABEL: TemplateSchema = {
+  id: 'tmpl-4x6-label',
+  name: '4x6 Shipping & Warehouse Label',
+  version: 1,
+  page: {
+    mode: 'fixed',
+    width: 4,
+    height: 6,
+    unit: 'inch',
+    orientation: 'portrait',
+    margins: { top: 0.2, right: 0.2, bottom: 0.2, left: 0.2 },
+    dpi: 300,
+  },
+  editor: { gridEnabled: true, gridSize: 0.1, snapEnabled: true },
+  elements: [
+    { id: 'e-label-title', type: 'text', label: 'Label Title', enabled: true, content: 'EXPRESS SHIPPING LABEL', x: 0.2, y: 0.3, width: 3.6, height: 0.4, zIndex: 1, style: { fontSize: 16, fontWeight: 'bold', textAlign: 'center' } },
+    { id: 'e-label-barcode', type: 'barcode', label: 'Tracking Barcode', enabled: true, x: 0.5, y: 1.0, width: 3.0, height: 1.2, zIndex: 2, style: { textAlign: 'center' } },
+    { id: 'e-label-qr', type: 'qr_code', label: 'QR Code', enabled: true, x: 1.3, y: 2.5, width: 1.4, height: 1.4, zIndex: 3, style: { textAlign: 'center' } },
   ],
 };

@@ -1,8 +1,17 @@
 import { create } from 'zustand';
-import { TemplateSchema, PrintElement, STARTER_80MM_RECEIPT, PageUnit, PageMode } from '@/types/print-designer';
+import {
+  TemplateSchema,
+  PrintElement,
+  STARTER_80MM_RECEIPT,
+  STARTER_58MM_RECEIPT,
+  STARTER_4X6_LABEL,
+  PageUnit,
+  PageMode,
+} from '@/types/print-designer';
 
 interface PrintDesignerState {
   mode: 'easy' | 'advanced';
+  templates: TemplateSchema[];
   schema: TemplateSchema;
   selectedElementId: string | null;
   zoom: number;
@@ -13,6 +22,12 @@ interface PrintDesignerState {
 
   setMode: (mode: 'easy' | 'advanced') => void;
   setSchema: (schema: TemplateSchema) => void;
+  selectTemplate: (id: string) => void;
+  createNewTemplate: (name: string, type: '80mm' | '58mm' | '4x6') => void;
+  duplicateTemplate: () => void;
+  deleteTemplate: (id: string) => void;
+  uploadLogoImage: (dataUrl: string) => void;
+  
   setSelectedElementId: (id: string | null) => void;
   setZoom: (zoom: number) => void;
   
@@ -32,6 +47,7 @@ interface PrintDesignerState {
 
 export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
   mode: 'easy',
+  templates: [STARTER_80MM_RECEIPT, STARTER_58MM_RECEIPT, STARTER_4X6_LABEL],
   schema: STARTER_80MM_RECEIPT,
   selectedElementId: null,
   zoom: 100,
@@ -41,6 +57,78 @@ export const usePrintDesignerStore = create<PrintDesignerState>((set, get) => ({
   lastSavedAt: null,
 
   setMode: (mode) => set({ mode }),
+
+  selectTemplate: (id) => {
+    const { templates } = get();
+    const found = templates.find((t) => t.id === id);
+    if (found) {
+      set({
+        schema: found,
+        history: [found],
+        historyIndex: 0,
+        selectedElementId: null,
+      });
+    }
+  },
+
+  createNewTemplate: (name, type) => {
+    const { templates } = get();
+    let base = STARTER_80MM_RECEIPT;
+    if (type === '58mm') base = STARTER_58MM_RECEIPT;
+    if (type === '4x6') base = STARTER_4X6_LABEL;
+
+    const newSchema: TemplateSchema = {
+      ...base,
+      id: `tmpl-${Date.now()}`,
+      name: name || `Custom Template ${templates.length + 1}`,
+    };
+
+    set({
+      templates: [...templates, newSchema],
+      schema: newSchema,
+      history: [newSchema],
+      historyIndex: 0,
+    });
+  },
+
+  duplicateTemplate: () => {
+    const { schema, templates } = get();
+    const dup: TemplateSchema = {
+      ...schema,
+      id: `tmpl-${Date.now()}`,
+      name: `${schema.name} (Copy)`,
+    };
+    set({
+      templates: [...templates, dup],
+      schema: dup,
+      history: [dup],
+      historyIndex: 0,
+    });
+  },
+
+  deleteTemplate: (id) => {
+    const { templates, schema } = get();
+    if (templates.length <= 1) return;
+    const remaining = templates.filter((t) => t.id !== id);
+    set({
+      templates: remaining,
+      schema: schema.id === id ? remaining[0] : schema,
+    });
+  },
+
+  uploadLogoImage: (dataUrl) => {
+    const { schema, setSchema } = get();
+    const logoEl = schema.elements.find((el) => el.type === 'logo' || el.id === 'e-logo');
+    if (logoEl) {
+      get().updateElement(logoEl.id, { content: dataUrl });
+    } else {
+      get().addElement('logo', 'Uploaded Store Logo');
+      const updatedLogo = get().schema.elements.find((el) => el.type === 'logo');
+      if (updatedLogo) {
+        get().updateElement(updatedLogo.id, { content: dataUrl });
+      }
+    }
+  },
 
   setSchema: (schema) => {
     const { history, historyIndex } = get();
