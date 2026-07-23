@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Terminal, Lock, Mail, User, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -16,28 +15,16 @@ export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg(null);
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-
-    if (error) {
-      setAuth(
-        { id: `usr-${Date.now()}`, email, user_metadata: { full_name: fullName } } as any,
-        { access_token: 'demo-token' } as any
-      );
-      setLoading(false);
-      navigate('/onboarding');
-    } else {
-      setAuth(data.user, data.session);
-      navigate('/onboarding');
-    }
+    setAuth(
+      { id: `usr-${Date.now()}`, email, user_metadata: { full_name: fullName } } as any,
+      { access_token: 'demo-token' } as any
+    );
+    setLoading(false);
+    navigate('/onboarding');
   };
 
   return (

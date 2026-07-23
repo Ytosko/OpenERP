@@ -4,7 +4,6 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/useAuthStore';
-import { supabase } from '@/lib/supabase';
 
 // Pages & Layouts
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -23,23 +22,11 @@ import { SignupPage } from '@/pages/Auth/SignupPage';
 const queryClient = new QueryClient();
 
 export function App() {
-  const { setAuth, setLoading } = useAuthStore();
+  const { setLoading } = useAuthStore();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setAuth(session?.user ?? null, session);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuth(session?.user ?? null, session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setAuth, setLoading]);
+    setLoading(false);
+  }, [setLoading]);
 
   return (
     <QueryClientProvider client={queryClient}>

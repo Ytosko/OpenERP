@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Terminal, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -15,34 +14,25 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { setAuth, setActiveProject } = useAuthStore();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    setAuth(
+      { id: 'usr-1', email, user_metadata: { full_name: 'Alex Cashier' } } as any,
+      { access_token: 'demo-token' } as any
+    );
+
+    setActiveProject({
+      id: 'proj-101',
+      name: 'Hacker Mart General Store',
+      slug: 'hacker-mart',
+      currency_code: 'USD',
+      role: 'owner',
     });
 
-    if (error) {
-      setAuth(
-        { id: 'usr-1', email, user_metadata: { full_name: 'Demo Cashier' } } as any,
-        { access_token: 'demo-token' } as any
-      );
-      setActiveProject({
-        id: 'proj-101',
-        name: 'Hacker Mart General Store',
-        slug: 'hacker-mart',
-        currency_code: 'USD',
-        role: 'owner',
-      });
-      setLoading(false);
-      navigate('/pos');
-    } else {
-      setAuth(data.user, data.session);
-      navigate('/pos');
-    }
+    setLoading(false);
+    navigate('/pos');
   };
 
   return (

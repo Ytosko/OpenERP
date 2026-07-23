@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { usePosStore, PosProduct } from '@/store/usePosStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { supabase } from '@/lib/supabase';
+import { executeSaleRPC } from '@/lib/db-client';
 import {
   Search,
   ShoppingCart,
@@ -17,8 +17,6 @@ import {
   QrCode,
   Printer,
   CheckCircle2,
-  AlertTriangle,
-  UserCheck,
 } from 'lucide-react';
 import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
 import { STARTER_80MM_RECEIPT } from '@/types/print-designer';
@@ -42,10 +40,7 @@ export const PosTerminalPage: React.FC = () => {
     clearCart,
     searchQuery,
     setSearchQuery,
-    selectedCategory,
-    setSelectedCategory,
     discountTotal,
-    setDiscountTotal,
     paymentMethod,
     setPaymentMethod,
     cashPaid,
@@ -75,7 +70,6 @@ export const PosTerminalPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // Execute Atomic Supabase RPC
       const payload = {
         p_project_id: activeProject?.id || '00000000-0000-0000-0000-000000000001',
         p_store_id: '00000000-0000-0000-0000-000000000001',
@@ -88,14 +82,10 @@ export const PosTerminalPage: React.FC = () => {
         p_discount_total: discountTotal,
       };
 
-      const { data, error } = await supabase.rpc('complete_sale', payload);
-
-      if (error) {
-        console.warn('Supabase RPC call fallback to instant offline mode:', error.message);
-      }
+      const result = await executeSaleRPC(payload);
 
       setCompletedSale({
-        invoice_number: data?.invoice_number || `INV-${Date.now().toString().slice(-6)}`,
+        invoice_number: result?.invoice_number || `INV-${Date.now().toString().slice(-6)}`,
         items: [...cart],
         subtotal,
         discountTotal,
@@ -108,7 +98,7 @@ export const PosTerminalPage: React.FC = () => {
       setCheckoutOpen(false);
     } catch (err) {
       console.error(err);
-    } finally {
+    } fontFinally: {
       setLoading(false);
     }
   };
@@ -117,7 +107,7 @@ export const PosTerminalPage: React.FC = () => {
     <div className="h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Products & Quick Search Area (7 cols) */}
       <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
-        {/* Search Bar & Barcode Scanner */}
+        {/* Search Bar */}
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -339,7 +329,7 @@ export const PosTerminalPage: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setCheckoutOpen(false)}
-                className="flex-1 py-2.5 border border-slate-300 rounded-lg text-slate-700 cursor-pointer"
+                className="flex-1 py-2.5 border border-slate-300 rounded text-slate-700 cursor-pointer"
               >
                 CANCEL
               </button>
