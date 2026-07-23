@@ -4,9 +4,11 @@ import React, { useState } from 'react';
 import { usePosStore, PosProduct } from '@/store/usePosStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLoyaltyStore } from '@/store/useLoyaltyStore';
+import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { executeSaleRPC } from '@/lib/db-client';
 import { openCashDrawer, printDirectESC_POS } from '@/lib/hardware-printer';
 import { DigitalReceiptModal } from '@/components/receipt/DigitalReceiptModal';
+import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
 import {
   Search,
   ShoppingCart,
@@ -21,9 +23,8 @@ import {
   Gift,
   Share2,
   Zap,
+  FolderOpen,
 } from 'lucide-react';
-import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
-import { STARTER_80MM_RECEIPT } from '@/types/print-designer';
 
 const MOCK_PRODUCTS: PosProduct[] = [
   { id: 'p1', sku: 'COF-101', barcode: '8901001', name: 'Double Espresso 12oz', sales_price: 3.75, cost_price: 0.60, unit: 'cup', track_stock: false, stock_quantity: 999 },
@@ -35,11 +36,10 @@ const MOCK_PRODUCTS: PosProduct[] = [
 ];
 
 export const PosTerminalPage: React.FC = () => {
-  const { activeProject } = useAuthStore();
+  const { activeProject, user } = useAuthStore();
   const {
     cart,
     addToCart,
-    removeFromCart,
     updateQuantity,
     clearCart,
     searchQuery,
@@ -53,16 +53,16 @@ export const PosTerminalPage: React.FC = () => {
     checkoutOpen,
     setCheckoutOpen,
     holdSale,
-    resumeSale,
-    heldSales,
     recordCompletedSale,
   } = usePosStore();
 
   const { redeemPoints, earnPoints } = useLoyaltyStore();
+  const { templates, schema: activePrintTemplate } = usePrintDesignerStore();
 
   const [loading, setLoading] = useState(false);
   const [completedSale, setCompletedSale] = useState<any | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(activePrintTemplate.id);
 
   const subtotal = cart.reduce((acc, item) => acc + item.unit_price * item.quantity, 0);
   const grandTotal = Math.max(0, subtotal - discountTotal);
@@ -101,14 +101,12 @@ export const PosTerminalPage: React.FC = () => {
       const result = await executeSaleRPC(payload);
       earnPoints('cust-1', grandTotal);
 
-      // Hardware Drawer Open Trigger
       if (paymentMethod === 'CASH') {
         openCashDrawer();
       }
 
       const invoiceNum = result?.invoice_number || `INV-${Date.now().toString().slice(-6)}`;
 
-      // Push into real-time global completed sales store!
       recordCompletedSale({
         id: `inv-${Date.now()}`,
         invoice_number: invoiceNum,
@@ -138,6 +136,9 @@ export const PosTerminalPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const currentPrintTemplate =
+    templates.find((t) => t.id === selectedTemplateId) || activePrintTemplate;
 
   return (
     <div className="h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-12 gap-4 font-mono text-xs">
@@ -398,26 +399,66 @@ export const PosTerminalPage: React.FC = () => {
         </div>
       )}
 
-      {/* Completed Sale Print Receipt Modal */}
+      {/* Completed Sale Print Receipt Modal with Template Picker */}
       {completedSale && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-2xl font-mono text-xs flex flex-col items-center space-y-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl font-mono text-xs flex flex-col items-center space-y-4">
             <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <h3 className="text-sm font-bold text-slate-900">SALE COMPLETED!</h3>
-            <p className="text-slate-500 text-center">Invoice: {completedSale.invoice_number}</p>
+            <p className="text-slate-500 text-center font-bold">{completedSale.invoice_number}</p>
 
-            <div className="w-full border-t border-slate-200 pt-4 flex justify-center">
-              <PrintRenderer schema={STARTER_80MM_RECEIPT} />
+            {/* Template Selector Dropdown */}
+            <div className="w-full bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+              <label className="text-[10px] text-slate-500 font-bold flex items-center gap-1 uppercase">
+                <FolderOpen className="w-3.5 h-3.5 text-brand-500" /> SELECT PRINT DESIGN / TEMPLATE
+              </label>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                className="w-full p-2 bg-white border border-slate-300 rounded font-bold text-slate-900 focus:border-brand-500 outline-none text-xs cursor-pointer"
+              >
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    📄 {t.name} ({t.page.width}{t.page.unit})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Real Data Render through Selected Custom Print Design */}
+            <div className="w-full border-t border-slate-200 pt-3 flex justify-center max-h-[300px] overflow-y-auto">
+              <PrintRenderer
+                schema={currentPrintTemplate}
+                sampleData={{
+                  storeName: activeProject?.name || 'HACKER MART STORE',
+                  storeAddress: '100 Technology Way, San Francisco, CA',
+                  invoiceNumber: completedSale.invoice_number,
+                  dateTime: completedSale.date,
+                  cashier: user?.full_name || 'Alex Cashier',
+                  customerName: 'Walk-in Customer',
+                  items: completedSale.items.map((i: any) => ({
+                    name: i.product.name,
+                    sku: i.product.sku,
+                    qty: i.quantity,
+                    price: i.unit_price,
+                    total: i.unit_price * i.quantity,
+                  })),
+                  subtotal: completedSale.subtotal,
+                  discount: completedSale.discountTotal,
+                  tax: 0,
+                  grandTotal: completedSale.grandTotal,
+                }}
+              />
             </div>
 
             <div className="flex gap-2 w-full pt-2">
               <button
-                onClick={() => printDirectESC_POS(completedSale.invoice_number)}
+                onClick={() => window.print()}
                 className="flex-1 py-2 bg-slate-900 text-white font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer"
               >
-                <Printer className="w-4 h-4 text-brand-500" /> PRINT ESC/POS
+                <Printer className="w-4 h-4 text-brand-500" /> PRINT RECEIPT
               </button>
 
               <button

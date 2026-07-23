@@ -1,14 +1,19 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FileText, Printer, Eye, Search } from 'lucide-react';
+import { FileText, Printer, Eye, Search, FolderOpen } from 'lucide-react';
 import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
-import { STARTER_80MM_RECEIPT } from '@/types/print-designer';
 import { usePosStore, CompletedSaleRecord } from '@/store/usePosStore';
+import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export const InvoicesPage: React.FC = () => {
   const { completedSales } = usePosStore();
+  const { activeProject } = useAuthStore();
+  const { templates, schema: activePrintTemplate } = usePrintDesignerStore();
+
   const [selectedInvoice, setSelectedInvoice] = useState<CompletedSaleRecord | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(activePrintTemplate.id);
   const [search, setSearch] = useState('');
 
   const filtered = completedSales.filter(
@@ -16,6 +21,9 @@ export const InvoicesPage: React.FC = () => {
       inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
       inv.customer_name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const currentPrintTemplate =
+    templates.find((t) => t.id === selectedTemplateId) || activePrintTemplate;
 
   return (
     <div className="space-y-6 font-mono text-xs">
@@ -37,7 +45,7 @@ export const InvoicesPage: React.FC = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter by invoice # or customer name..."
-          className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs focus:border-brand-500 outline-none shadow-sm"
+          className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs focus:border-brand-500 outline-none shadow-sm font-bold"
         />
       </div>
 
@@ -84,22 +92,58 @@ export const InvoicesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Invoice Detail / Reprint Modal */}
+      {/* Invoice Detail / Reprint Modal with Print Template Switcher */}
       {selectedInvoice && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center space-y-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl flex flex-col items-center space-y-4">
             <h3 className="text-sm font-bold text-slate-900 border-b pb-2 w-full text-center">
-              REPRINT RECEIPT
+              REPRINT INVOICE RECEIPT
             </h3>
 
-            <div className="w-full border-t border-slate-200 pt-4 flex justify-center">
-              <PrintRenderer schema={STARTER_80MM_RECEIPT} />
+            {/* Template Selector Dropdown */}
+            <div className="w-full bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+              <label className="text-[10px] text-slate-500 font-bold flex items-center gap-1 uppercase">
+                <FolderOpen className="w-3.5 h-3.5 text-brand-500" /> SELECT PRINT DESIGN / TEMPLATE
+              </label>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                className="w-full p-2 bg-white border border-slate-300 rounded font-bold text-slate-900 focus:border-brand-500 outline-none text-xs cursor-pointer"
+              >
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    📄 {t.name} ({t.page.width}{t.page.unit})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Render Real Invoice Data through Selected Custom Print Design */}
+            <div className="w-full border-t border-slate-200 pt-3 flex justify-center max-h-[320px] overflow-y-auto">
+              <PrintRenderer
+                schema={currentPrintTemplate}
+                sampleData={{
+                  storeName: activeProject?.name || 'HACKER MART STORE',
+                  storeAddress: '100 Technology Way, San Francisco, CA',
+                  invoiceNumber: selectedInvoice.invoice_number,
+                  dateTime: selectedInvoice.date,
+                  cashier: 'Alex Cashier',
+                  customerName: selectedInvoice.customer_name,
+                  items: [
+                    { name: 'Completed POS Order Items', sku: 'ITEM-ALL', qty: selectedInvoice.items_count, price: selectedInvoice.total_amount / Math.max(1, selectedInvoice.items_count), total: selectedInvoice.total_amount },
+                  ],
+                  subtotal: selectedInvoice.total_amount,
+                  discount: 0,
+                  tax: 0,
+                  grandTotal: selectedInvoice.total_amount,
+                }}
+              />
             </div>
 
             <div className="flex gap-2 w-full pt-2">
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="flex-1 py-2 border border-slate-300 rounded text-slate-700 cursor-pointer"
+                className="flex-1 py-2 border border-slate-300 rounded text-slate-700 font-bold cursor-pointer"
               >
                 CLOSE
               </button>
@@ -107,7 +151,7 @@ export const InvoicesPage: React.FC = () => {
                 onClick={() => window.print()}
                 className="flex-1 py-2 bg-brand-500 text-white font-bold rounded shadow-hacker-orange flex items-center justify-center gap-1 cursor-pointer"
               >
-                <Printer className="w-4 h-4" /> PRINT
+                <Printer className="w-4 h-4" /> PRINT RECEIPT
               </button>
             </div>
           </div>
