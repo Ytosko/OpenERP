@@ -89,29 +89,33 @@ export const DashboardLayout: React.FC = () => {
       <aside className="w-full md:w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col justify-between shrink-0 font-mono text-xs">
         <div>
           {/* App Branding Header */}
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="p-4 border-b border-slate-800 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-9 h-9 bg-brand-500 text-white rounded-lg flex items-center justify-center shadow-hacker-orange shrink-0 font-bold">
                 <Terminal className="w-5 h-5" />
               </div>
-              <div className="truncate">
-                <h1 className="font-bold text-white tracking-tight text-sm">INDUSTRIAL ERP</h1>
-                <p className="text-[10px] text-slate-400">Commercial SaaS Edition</p>
+              <div className="min-w-0">
+                <h1 className="font-bold text-white tracking-tight text-sm truncate">INDUSTRIAL ERP</h1>
+                <p className="text-[10px] text-slate-400 truncate">Commercial SaaS Edition</p>
               </div>
             </div>
 
             {/* Connection Status Badge */}
-            <div className="flex items-center gap-1">
-              {isOnline ? (
-                <span className="flex items-center text-emerald-400 text-[9px] font-bold bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded-full" title="Connected online">
-                  <Wifi className="w-3 h-3 mr-1" /> ONLINE
-                </span>
-              ) : (
-                <span className="flex items-center text-amber-400 text-[9px] font-bold bg-amber-950/60 border border-amber-800 px-2 py-0.5 rounded-full" title="Offline mode">
-                  <WifiOff className="w-3 h-3 mr-1" /> OFFLINE
-                </span>
-              )}
-            </div>
+            {isOnline ? (
+              <span
+                className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-emerald-950/60 border border-emerald-800 text-emerald-400"
+                title="Connected online"
+              >
+                <Wifi className="w-3.5 h-3.5" />
+              </span>
+            ) : (
+              <span
+                className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-amber-950/60 border border-amber-800 text-amber-400"
+                title="Offline mode — sales will queue locally"
+              >
+                <WifiOff className="w-3.5 h-3.5" />
+              </span>
+            )}
           </div>
 
           {/* Offline Sync Banner if Pending Queue */}
