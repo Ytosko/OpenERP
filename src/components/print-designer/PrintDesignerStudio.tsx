@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useProjectRecord } from '@/hooks/useErpData';
 import { EasyModeEditor } from './EasyModeEditor';
 import { AdvancedModeEditor } from './AdvancedModeEditor';
-import { PrintRenderer } from './PrintRenderer';
+import { PrintRenderer, DEFAULT_SAMPLE } from './PrintRenderer';
 import { runAILayoutOptimizer } from '@/lib/ai-forecast';
 import { PageMode, PageUnit } from '@/types/print-designer';
 import {
@@ -23,6 +25,9 @@ import {
   FolderOpen,
   Maximize2,
   Loader2,
+  Save,
+  CloudUpload,
+  AlertCircle,
 } from 'lucide-react';
 
 export const PrintDesignerStudio: React.FC = () => {
@@ -42,7 +47,31 @@ export const PrintDesignerStudio: React.FC = () => {
     redo,
     historyIndex,
     history,
+    saveTemplate,
+    loadTemplatesFromDb,
+    saving,
+    dirty,
+    lastSavedAt,
+    saveError,
   } = usePrintDesignerStore();
+
+  const activeProjectId = useAuthStore((s) => s.activeProject?.id);
+  const { data: projectRecord } = useProjectRecord();
+
+  // Load this store's saved templates from Supabase (print_templates table)
+  useEffect(() => {
+    loadTemplatesFromDb();
+  }, [activeProjectId, loadTemplatesFromDb]);
+
+  // Live preview uses the REAL store branding, with demo cart items for context
+  const previewSample = {
+    ...DEFAULT_SAMPLE,
+    storeLogoUrl: projectRecord?.logo_url || '',
+    storeName: projectRecord?.name || DEFAULT_SAMPLE.storeName,
+    storeAddress: projectRecord?.settings.address || '',
+    storePhone: projectRecord?.settings.phone || '',
+    taxId: projectRecord?.settings.tax_id || '',
+  };
 
   const [zoomLevel, setZoomLevel] = useState(100);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -245,13 +274,34 @@ export const PrintDesignerStudio: React.FC = () => {
           </button>
 
           <button
+            onClick={() => saveTemplate()}
+            disabled={saving}
+            className={`ml-2 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition-all disabled:opacity-60 ${
+              dirty
+                ? 'bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse'
+                : 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-700/40'
+            }`}
+            title={dirty ? 'You have unsaved changes' : 'Template saved to your store'}
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : dirty ? <CloudUpload className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            {saving ? 'SAVING...' : dirty ? 'SAVE CHANGES' : lastSavedAt ? `SAVED ${lastSavedAt}` : 'SAVE'}
+          </button>
+
+          <button
             onClick={() => window.print()}
-            className="ml-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-3 py-1.5 rounded-lg shadow-hacker-orange flex items-center gap-1.5 cursor-pointer"
+            className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-3 py-1.5 rounded-lg shadow-hacker-orange flex items-center gap-1.5 cursor-pointer"
           >
             <Printer className="w-4 h-4" /> TEST PRINT
           </button>
         </div>
       </header>
+
+      {/* Save Error Banner */}
+      {saveError && (
+        <div className="bg-red-950 text-red-300 border-b border-red-800 px-4 py-2 flex items-center gap-2 text-[11px] font-bold shrink-0">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {saveError}
+        </div>
+      )}
 
       {/* Quick Live Page Dimensions Control Bar */}
       <div className="bg-slate-800 text-slate-200 px-4 py-2 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -350,7 +400,7 @@ export const PrintDesignerStudio: React.FC = () => {
             style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'center center' }}
             className="transition-all shadow-2xl bg-white rounded border border-slate-300 p-2"
           >
-            <PrintRenderer schema={schema} />
+            <PrintRenderer schema={schema} sampleData={previewSample} />
           </div>
         </div>
       </div>

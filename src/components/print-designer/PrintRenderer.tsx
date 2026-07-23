@@ -37,12 +37,12 @@ export interface PrintRendererProps {
   flow?: boolean;
 }
 
-const DEFAULT_SAMPLE: PrintSampleData = {
+export const DEFAULT_SAMPLE: PrintSampleData = {
   storeLogoUrl: '',
-  storeName: 'HACKER MART ENTERPRISE',
-  storeAddress: '100 Technology Way, San Francisco, CA',
-  storePhone: '+1 (555) 019-2834',
-  taxId: 'TAX-88912-US',
+  storeName: 'MY STORE',
+  storeAddress: '',
+  storePhone: '',
+  taxId: '',
   invoiceNumber: 'INV-20260723-00109',
   dateTime: new Date().toLocaleString(),
   cashier: 'Alex Cashier',
@@ -73,8 +73,8 @@ function ElementContent({
           {imageSrc ? (
             <img src={imageSrc} alt="Store Logo" className="max-w-full max-h-full object-contain pointer-events-none" />
           ) : (
-            <div className="w-full h-full bg-slate-900 text-white rounded flex items-center justify-center text-[10px] font-bold">
-              [STORE LOGO]
+            <div className="w-full h-full bg-slate-100 border border-dashed border-slate-400 text-slate-500 rounded flex items-center justify-center text-[8px] font-bold text-center leading-tight">
+              NO LOGO — upload in Settings
             </div>
           )}
         </div>
@@ -82,12 +82,12 @@ function ElementContent({
     }
 
     case 'store_name':
-      return <div className="w-full truncate font-bold">{sampleData?.storeName || el.content || 'HACKER MART STORE'}</div>;
+      return <div className="w-full truncate font-bold">{sampleData?.storeName || el.content || 'MY STORE'}</div>;
 
     case 'store_address':
       return (
         <div className="w-full text-[10px] leading-tight text-slate-700">
-          <div>{sampleData?.storeAddress || el.content || '100 Technology Way, San Francisco, CA'}</div>
+          <div>{sampleData?.storeAddress || el.content || 'Set your address in Store Branding & Settings'}</div>
           {sampleData?.storePhone && <div className="text-[9px] text-slate-500">Ph: {sampleData.storePhone}</div>}
         </div>
       );

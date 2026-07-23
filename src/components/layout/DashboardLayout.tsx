@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
+import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { syncOfflineQueue, getOfflineQueue } from '@/lib/offline-sync';
 import {
   Terminal,
@@ -26,7 +27,14 @@ import {
 
 export const DashboardLayout: React.FC = () => {
   const { user, activeProject, projects, selectProject, logout } = useAuthStore();
+  const loadTemplatesFromDb = usePrintDesignerStore((s) => s.loadTemplatesFromDb);
   const navigate = useNavigate();
+
+  // Saved print templates are used by POS receipts and invoice reprints,
+  // so load them as soon as any dashboard page mounts.
+  useEffect(() => {
+    loadTemplatesFromDb();
+  }, [activeProject?.id, loadTemplatesFromDb]);
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineCount, setOfflineCount] = useState(0);
