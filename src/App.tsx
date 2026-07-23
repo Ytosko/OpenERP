@@ -15,6 +15,7 @@ import { SuppliersPage } from '@/pages/Purchasing/SuppliersPage';
 import { TeamManagementPage } from '@/pages/Team/TeamManagementPage';
 import { PaymentGatewaysPage } from '@/pages/Settings/PaymentGatewaysPage';
 import { ReportsPage } from '@/pages/Reports/ReportsPage';
+import { SettingsPage } from '@/pages/Settings/SettingsPage';
 import { GuidedSetupPage } from '@/pages/Onboarding/GuidedSetupPage';
 import { LoginPage } from '@/pages/Auth/LoginPage';
 import { SignupPage } from '@/pages/Auth/SignupPage';
@@ -58,6 +59,7 @@ export function App() {
             <Route path="team" element={<TeamManagementPage />} />
             <Route path="payment-gateways" element={<PaymentGatewaysPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/login" replace />} />
