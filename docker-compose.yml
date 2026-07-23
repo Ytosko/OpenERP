@@ -11,9 +11,9 @@ services:
     ports:
       - "3000:80"
     environment:
-      - VITE_APP_URL=${VITE_APP_URL:-http://localhost:3000}
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-http://localhost:8000}
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      - VITE_APP_URL=${SERVICE_URL_APP:-https://pos.ytosko.dev}
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-https://pos.ytosko.dev}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-placeholder-anon-key}
       - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
     networks:
       - erp-network
