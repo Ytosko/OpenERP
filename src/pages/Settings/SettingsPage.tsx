@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { usePrintDesignerStore } from '@/store/usePrintDesignerStore';
 import { useProjectRecord, useUpdateProject, uploadStoreLogo } from '@/hooks/useErpData';
+import { supabase } from '@/lib/supabase';
 import {
   Building2,
   DollarSign,
@@ -26,9 +27,12 @@ const SYMBOL_TO_CODE: Record<string, string> = {
 
 export const SettingsPage: React.FC = () => {
   const activeProject = useAuthStore((s) => s.activeProject);
+  const refreshProjects = useAuthStore((s) => s.refreshProjects);
+  const selectProject = useAuthStore((s) => s.selectProject);
   const { uploadLogoImage } = usePrintDesignerStore();
   const { data: project, isLoading, error } = useProjectRecord();
   const updateProject = useUpdateProject();
+  const [creating, setCreating] = useState(false);
 
   const [companyName, setCompanyName] = useState('');
   const [currencySymbol, setCurrencySymbol] = useState('$');
@@ -57,8 +61,52 @@ export const SettingsPage: React.FC = () => {
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!project) return;
     setActionError(null);
+
+    // No store yet? Saving this form CREATES one with the info entered here.
+    if (!activeProject) {
+      if (!companyName.trim()) {
+        setActionError('Enter a store / company name first.');
+        return;
+      }
+      setCreating(true);
+      try {
+        const { data, error: createError } = await supabase.rpc('create_project_with_defaults', {
+          p_name: companyName.trim(),
+          p_currency: SYMBOL_TO_CODE[currencySymbol] || 'USD',
+        });
+        if (createError) throw new Error(createError.message);
+
+        const newProjectId = data?.project_id as string;
+        const { error: settingsError } = await supabase
+          .from('projects')
+          .update({
+            settings: {
+              currency_symbol: currencySymbol,
+              tax_rate: taxRate,
+              tax_id: taxId,
+              address: storeAddress,
+              phone: storePhone,
+              receipt_footer: receiptFooter,
+            },
+          })
+          .eq('id', newProjectId);
+        if (settingsError) throw new Error(settingsError.message);
+
+        await refreshProjects();
+        if (newProjectId) await selectProject(newProjectId);
+
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+      } catch (err: any) {
+        setActionError(err?.message || 'Store creation failed.');
+      } finally {
+        setCreating(false);
+      }
+      return;
+    }
+
+    if (!project) return;
 
     try {
       await updateProject.mutateAsync({
@@ -83,7 +131,11 @@ export const SettingsPage: React.FC = () => {
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !activeProject?.id) return;
+    if (!file) return;
+    if (!activeProject?.id) {
+      setActionError('Save your store configuration first — that creates your store; then upload the logo.');
+      return;
+    }
     setActionError(null);
     setUploadingLogo(true);
 
@@ -125,6 +177,16 @@ export const SettingsPage: React.FC = () => {
         <div className="p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg flex items-start gap-2 font-bold">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{actionError || (error as Error)?.message}</span>
+        </div>
+      )}
+
+      {!activeProject && (
+        <div className="p-4 bg-brand-50 border border-brand-300 text-brand-800 rounded-xl font-bold flex items-start gap-2">
+          <Building2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            No store yet — fill in your store details below and hit SAVE. That creates your store
+            (with this branding, currency & tax) and you can upload the logo right after.
+          </span>
         </div>
       )}
 
@@ -265,10 +327,17 @@ export const SettingsPage: React.FC = () => {
 
           <button
             type="submit"
-            disabled={updateProject.isPending || isLoading}
+            disabled={updateProject.isPending || creating || isLoading}
             className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-6 py-3 rounded-xl shadow-hacker-orange flex items-center gap-2 cursor-pointer transition-all text-xs disabled:opacity-50"
           >
-            <Save className="w-4 h-4" /> {updateProject.isPending ? 'SAVING...' : 'SAVE STORE CONFIGURATION'}
+            <Save className="w-4 h-4" />
+            {creating
+              ? 'CREATING YOUR STORE...'
+              : updateProject.isPending
+                ? 'SAVING...'
+                : activeProject
+                  ? 'SAVE STORE CONFIGURATION'
+                  : 'SAVE & CREATE STORE'}
           </button>
         </div>
       </form>
