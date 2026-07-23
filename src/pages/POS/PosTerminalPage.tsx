@@ -3,20 +3,24 @@
 import React, { useState } from 'react';
 import { usePosStore, PosProduct } from '@/store/usePosStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLoyaltyStore } from '@/store/useLoyaltyStore';
 import { executeSaleRPC } from '@/lib/db-client';
+import { openCashDrawer, printDirectESC_POS } from '@/lib/hardware-printer';
+import { DigitalReceiptModal } from '@/components/receipt/DigitalReceiptModal';
 import {
   Search,
   ShoppingCart,
   Plus,
   Minus,
-  Trash2,
   PauseCircle,
-  PlayCircle,
   CreditCard,
   Banknote,
   QrCode,
   Printer,
   CheckCircle2,
+  Gift,
+  Share2,
+  Zap,
 } from 'lucide-react';
 import { PrintRenderer } from '@/components/print-designer/PrintRenderer';
 import { STARTER_80MM_RECEIPT } from '@/types/print-designer';
@@ -41,6 +45,7 @@ export const PosTerminalPage: React.FC = () => {
     searchQuery,
     setSearchQuery,
     discountTotal,
+    setDiscountTotal,
     paymentMethod,
     setPaymentMethod,
     cashPaid,
@@ -52,8 +57,11 @@ export const PosTerminalPage: React.FC = () => {
     heldSales,
   } = usePosStore();
 
+  const { redeemPoints, earnPoints } = useLoyaltyStore();
+
   const [loading, setLoading] = useState(false);
   const [completedSale, setCompletedSale] = useState<any | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const subtotal = cart.reduce((acc, item) => acc + item.unit_price * item.quantity, 0);
   const grandTotal = Math.max(0, subtotal - discountTotal);
@@ -64,6 +72,13 @@ export const PosTerminalPage: React.FC = () => {
     p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.barcode?.includes(searchQuery)
   );
+
+  const handleRedeemLoyalty = () => {
+    const discount = redeemPoints('cust-1', 100);
+    if (discount > 0) {
+      setDiscountTotal(discountTotal + discount);
+    }
+  };
 
   const handleCheckoutSubmit = async () => {
     if (cart.length === 0) return;
@@ -83,6 +98,12 @@ export const PosTerminalPage: React.FC = () => {
       };
 
       const result = await executeSaleRPC(payload);
+      earnPoints('cust-1', grandTotal);
+
+      // Hardware Drawer Open Trigger
+      if (paymentMethod === 'CASH') {
+        openCashDrawer();
+      }
 
       setCompletedSale({
         invoice_number: result?.invoice_number || `INV-${Date.now().toString().slice(-6)}`,
@@ -98,7 +119,7 @@ export const PosTerminalPage: React.FC = () => {
       setCheckoutOpen(false);
     } catch (err) {
       console.error(err);
-    } fontFinally: {
+    } finally {
       setLoading(false);
     }
   };
@@ -106,7 +127,7 @@ export const PosTerminalPage: React.FC = () => {
   return (
     <div className="h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Products & Quick Search Area (7 cols) */}
-      <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden">
+      <div className="lg:col-span-7 flex flex-col gap-4 overflow-hidden font-mono text-xs">
         {/* Search Bar */}
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
           <div className="relative flex-1">
@@ -120,18 +141,13 @@ export const PosTerminalPage: React.FC = () => {
             />
           </div>
 
-          {heldSales.length > 0 && (
-            <div className="flex items-center gap-1.5 font-mono text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-              <PauseCircle className="w-4 h-4" />
-              <span>{heldSales.length} Held</span>
-              <button
-                onClick={() => resumeSale(heldSales[0].id)}
-                className="ml-1 text-brand-600 underline font-bold cursor-pointer"
-              >
-                Resume
-              </button>
-            </div>
-          )}
+          <button
+            onClick={() => openCashDrawer()}
+            className="px-3 py-1.5 border border-slate-300 hover:border-slate-400 rounded-lg font-bold flex items-center gap-1 cursor-pointer shrink-0"
+            title="Trigger cash drawer signal"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-500" /> DRAWER
+          </button>
         </div>
 
         {/* Product Touch Grid */}
@@ -176,7 +192,7 @@ export const PosTerminalPage: React.FC = () => {
       </div>
 
       {/* Cart Drawer & Checkout (5 cols) */}
-      <div className="lg:col-span-5 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+      <div className="lg:col-span-5 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between font-mono text-xs">
         <div>
           {/* Cart Header */}
           <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-3">
@@ -195,7 +211,7 @@ export const PosTerminalPage: React.FC = () => {
           </div>
 
           {/* Cart Items List */}
-          <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
             {cart.length === 0 ? (
               <div className="py-12 text-center text-slate-400 font-mono text-xs">
                 Cart is empty. Tap any product on the left to add.
@@ -240,12 +256,34 @@ export const PosTerminalPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Loyalty Reward Banner */}
+        {cart.length > 0 && (
+          <div className="p-2 bg-brand-50 border border-brand-200 rounded-lg flex items-center justify-between my-2">
+            <div className="flex items-center gap-1.5 text-brand-700 font-bold text-[10px]">
+              <Gift className="w-3.5 h-3.5" /> Customer Points: 250
+            </div>
+            <button
+              onClick={handleRedeemLoyalty}
+              className="px-2 py-0.5 bg-brand-500 text-white rounded text-[10px] font-bold shadow-hacker-orange cursor-pointer"
+            >
+              Redeem 100 Pts ($10 Off)
+            </button>
+          </div>
+        )}
+
         {/* Cart Totals & Checkout Button */}
-        <div className="border-t border-slate-200 pt-4 space-y-3 font-mono text-xs">
+        <div className="border-t border-slate-200 pt-3 space-y-3 font-mono text-xs">
           <div className="flex justify-between text-slate-600">
             <span>Subtotal</span>
             <span>${subtotal.toFixed(2)}</span>
           </div>
+
+          {discountTotal > 0 && (
+            <div className="flex justify-between text-emerald-600 font-bold">
+              <span>Loyalty Discount</span>
+              <span>-${discountTotal.toFixed(2)}</span>
+            </div>
+          )}
 
           <div className="flex justify-between font-bold text-base text-slate-900 border-t border-slate-200 pt-2">
             <span>GRAND TOTAL</span>
@@ -329,7 +367,7 @@ export const PosTerminalPage: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setCheckoutOpen(false)}
-                className="flex-1 py-2.5 border border-slate-300 rounded text-slate-700 cursor-pointer"
+                className="flex-1 py-2.5 border border-slate-300 rounded-lg text-slate-700 cursor-pointer"
               >
                 CANCEL
               </button>
@@ -361,25 +399,41 @@ export const PosTerminalPage: React.FC = () => {
 
             <div className="flex gap-2 w-full pt-2">
               <button
-                onClick={() => {
-                  window.print();
-                }}
+                onClick={() => printDirectESC_POS(completedSale.invoice_number)}
                 className="flex-1 py-2 bg-slate-900 text-white font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer"
               >
-                <Printer className="w-4 h-4" /> PRINT
+                <Printer className="w-4 h-4 text-brand-500" /> PRINT ESC/POS
               </button>
+
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="py-2 px-3 border border-slate-300 rounded-lg font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <Share2 className="w-4 h-4 text-brand-500" /> SHARE
+              </button>
+
               <button
                 onClick={() => {
                   setCompletedSale(null);
                   clearCart();
                 }}
-                className="flex-1 py-2 bg-brand-500 text-white font-bold rounded-lg shadow-hacker-orange cursor-pointer"
+                className="py-2 px-3 bg-brand-500 text-white font-bold rounded-lg shadow-hacker-orange cursor-pointer"
               >
                 NEW SALE
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Digital Receipt Share Modal */}
+      {completedSale && (
+        <DigitalReceiptModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          invoiceNumber={completedSale.invoice_number}
+          totalAmount={completedSale.grandTotal}
+        />
       )}
     </div>
   );
