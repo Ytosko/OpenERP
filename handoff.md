@@ -1594,7 +1594,7 @@ Add visual regression tests for common templates.
 23. Support browser print and PDF export.
 24. Use one shared rendering model.
 25. Include autosave, Undo, and Redo.
-26. Include template history.
+26. Include template history. 
 27. Use plain-language error messages.
 28. Keep screens focused on one main action.
 29. Use large touch-friendly controls.
